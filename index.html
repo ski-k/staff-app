@@ -160,7 +160,6 @@
   
   .staff-card.is-kobutsu { border-left: 3px solid #805ad5; } 
   .staff-card.is-ojt { border-left: 3px solid #48bb78; } 
-  .staff-card.is-kobutsu.is-ojt { border-left: 3px dashed #48bb78; } /* 両方の場合は点線など工夫 */
 
   .delete-btn { background: none; border: none; color: #cbd5e0; cursor: pointer; font-size: 1.2em; padding: 0; line-height: 1; margin-left: 2px; }
   .delete-btn:hover { color: #e53e3e; }
@@ -179,25 +178,27 @@
   #loading-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index: 999; display: flex; justify-content: center; align-items: center; font-size: 1.5em; font-weight: bold; color: #3182ce; backdrop-filter: blur(2px);}
   
   /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-     ★ 全体配置表 PDF出力（横向き）用デザイン (【カラー＆くっきり罫線版】)
+     ★ 全体配置表 PDF出力（横向き）用デザイン (【コンパクト収納 10店舗対応版】)
      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
   @media print {
-    @page { size: A4 landscape; margin: 8mm 6mm; }
+    /* 余白をギリギリまで小さくしてスペースを確保 */
+    @page { size: A4 landscape; margin: 5mm; }
     
-    body { background-color: #fff !important; padding: 0; margin: 0; color: #1a202c !important; font-family: "Yu Gothic", "Meiryo", sans-serif; font-size: 11px; }
+    /* ベースのフォントサイズを縮小 */
+    body { background-color: #fff !important; padding: 0; margin: 0; color: #1a202c !important; font-family: "Yu Gothic", "Meiryo", sans-serif; font-size: 9.5px; }
     
     .action-bar, .delete-btn, .edit-btn, .modal-overlay, #report-area, .region-tabs, #loading-overlay { display: none !important; }
     
-    h2#page-title { text-align: center; border-bottom: 2px solid #2d3748; padding-bottom: 4px; margin-top: 0; margin-bottom: 8px; font-size: 16px; font-weight: bold; color: #1a202c !important; }
+    h2#page-title { text-align: center; border-bottom: 2px solid #2d3748; padding-bottom: 2px; margin-top: 0; margin-bottom: 4px; font-size: 14px; font-weight: bold; color: #1a202c !important; }
     
     .board { display: block !important; border-top: 2px solid #2d3748; border-bottom: 2px solid #2d3748; padding: 2px 0; }
     
-    /* ★ 店舗の行：くっきりした濃いグレー（#4a5568）の実線で表のようにする */
+    /* 店舗の行：上下の隙間（margin-bottom）を極限までカット */
     .store-row { 
       box-shadow: none !important; 
       border-radius: 2px !important; 
       padding: 0 !important; 
-      margin-bottom: 6px !important; 
+      margin-bottom: 3px !important; 
       border: 1.5px solid #4a5568 !important; 
       display: flex; align-items: stretch; 
       background: #fff !important; 
@@ -205,90 +206,72 @@
       overflow: hidden;
     }
     
-    /* ★ エリア名：色は残しつつ、右側にくっきりした区切り線 */
+    /* エリア名・店舗情報：横幅を削ってスタッフエリアのスペースを増やす */
     .area-name { 
-      background: #ebf8ff !important; 
-      color: #2c5282 !important; 
-      font-size: 0.85em; width: 55px; 
-      border: none !important; 
-      border-right: 1.5px solid #4a5568 !important; 
-      border-radius: 0 !important; 
-      padding: 4px; margin: 0; 
-      font-weight: bold; 
+      background: #ebf8ff !important; color: #2c5282 !important; 
+      font-size: 0.8em; width: 45px; border: none !important; 
+      border-right: 1.5px solid #4a5568 !important; border-radius: 0 !important; 
+      padding: 2px; margin: 0; font-weight: bold; 
     }
-    
-    /* ★ 店舗情報：右側にくっきりした区切り線 */
     .store-info { 
       border-right: 1.5px solid #4a5568 !important; 
-      width: 125px; padding: 4px; margin: 0; background: #fff !important;
+      width: 110px; padding: 2px 4px; margin: 0; background: #fff !important;
     }
-    .store-name { font-size: 1.1em; font-weight: bold; margin-bottom: 3px; color: #1a202c !important; }
+    .store-name { font-size: 1.05em; font-weight: bold; margin-bottom: 1px; color: #1a202c !important; }
     
-    .staff-counts { flex-direction: column; gap: 2px; width: 100%; }
-    .c-details { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 2px !important; width: 100%; }
-    /* カウントバッジの色はそのまま印刷に反映されます（print-color-adjust） */
+    .staff-counts { flex-direction: column; gap: 1px; width: 100%; }
+    .c-details { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 1px !important; width: 100%; }
     
-    .staff-wrapper { gap: 0; padding: 4px; background: #fff !important; }
+    /* スタッフ配置エリア：内側の余白をカット */
+    .staff-wrapper { gap: 0; padding: 2px 4px; background: #fff !important; }
     
-    /* ★ マネージャー枠：色は残しつつ、枠線を太めに */
     .special-staff-list { 
-      padding: 8px 4px 2px 4px; 
-      background: #faf5ff !important; 
-      border: 1px solid #805ad5 !important; 
-      margin-bottom: 4px; gap: 4px; border-radius: 2px;
+      padding: 6px 2px 1px 2px; background: #faf5ff !important; 
+      border: 1px solid #805ad5 !important; margin-bottom: 2px; gap: 2px; border-radius: 2px;
     }
     .special-staff-list::before { 
       background: #805ad5 !important; color: #fff !important; 
-      top: -6px; left: 3px; font-size: 0.65em; padding: 1px 4px; font-weight: bold; border-radius: 4px;
+      top: -5px; left: 2px; font-size: 0.6em; padding: 0 3px; font-weight: bold; border-radius: 3px;
     }
     
-    .staff-list { background: transparent !important; border: none !important; padding: 0; gap: 4px; }
+    .staff-list { background: transparent !important; border: none !important; padding: 0; gap: 2px; }
     
-    /* ★ スタッフカード：はっきりとした実線の枠を追加 */
+    /* ★ スタッフカード：コンパクトに縮小！(幅100pxに短縮) */
     .staff-card { 
-      box-shadow: none !important; 
-      border: 1px solid #4a5568 !important; 
-      background: #fff !important; 
-      border-radius: 2px !important; 
-      padding: 3px 4px; width: 112px; gap: 1px; 
+      box-shadow: none !important; border: 1px solid #4a5568 !important; background: #fff !important; 
+      border-radius: 2px !important; padding: 2px; width: 100px; gap: 0; 
     }
+    .staff-card.is-kobutsu { border-left: 2.5px solid #805ad5 !important; } 
+    .staff-card.is-ojt { border-left: 2.5px solid #48bb78 !important; } 
     
-    /* 役職・OJTライン：色は残す */
-    .staff-card.is-kobutsu { border-left: 3px solid #805ad5 !important; } 
-    .staff-card.is-ojt { border-left: 3px solid #48bb78 !important; } 
-    
-    /* バッジの色は残しつつ、カード自体の背景色も少し目立たせる */
     .staff-card.status-moved { background: #fffff0 !important; border: 1.5px solid #d69e2e !important; }
     .staff-card.status-up { background: #fff5f5 !important; border: 1.5px solid #e53e3e !important; }
     .staff-card.status-down { background: #ebf8ff !important; border: 1.5px solid #3182ce !important; }
     .staff-card.status-new { background: #e6fffa !important; border: 1.5px solid #38b2ac !important; }
     
-    .emp-id-text { font-size: 0.65em; color: #4a5568 !important; display: block; margin-bottom: 0; }
-    
-    .name-text { font-size: 0.95em; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1a202c !important; font-weight: bold; }
+    /* 各種テキストも縮小して高さを節約 */
+    .emp-id-text { font-size: 0.65em; color: #4a5568 !important; display: block; margin-bottom: 0; line-height: 1;}
+    .name-text { font-size: 0.9em; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1a202c !important; font-weight: bold; line-height: 1.1;}
     
     .staff-card[data-company]:not([data-company=""]) .name-text { display: none !important; }
     .staff-card[data-company]:not([data-company=""]) .company-text:not(:empty) { 
-      display: block !important; font-size: 0.85em !important; font-weight: bold !important;
+      display: block !important; font-size: 0.8em !important; font-weight: bold !important;
       color: #1a202c !important; margin-top: 0 !important; white-space: normal !important; 
-      background: #edf2f7 !important; padding: 1px 2px !important;
+      background: #edf2f7 !important; padding: 0 1px !important; line-height: 1.1; 
     }
     .company-text:empty { display: none !important; }
     
-    .staff-role { border: none !important; background: transparent !important; -webkit-appearance: none; appearance: none; padding: 0; font-size: 0.8em; font-weight: bold; color: #4a5568 !important; }
+    .staff-role { border: none !important; background: transparent !important; -webkit-appearance: none; appearance: none; padding: 0; font-size: 0.75em; font-weight: bold; color: #4a5568 !important; line-height: 1;}
     .staff-actions { gap: 1px; }
     
-    /* OJT/古物ボタン：印刷時は色付きの小さな四角ラベルとして表示 */
-    .ojt-btn, .kobutsu-btn { font-size: 0.6em !important; padding: 1px 2px !important; border-radius: 2px !important; box-shadow: none !important; font-weight: bold !important; }
+    .ojt-btn, .kobutsu-btn { font-size: 0.55em !important; padding: 0 1px !important; border-radius: 2px !important; box-shadow: none !important; font-weight: bold !important; }
     .staff-card.is-ojt .ojt-btn { background: #48bb78 !important; color: #fff !important; border: none !important; }
     .staff-card.is-kobutsu .kobutsu-btn { background: #805ad5 !important; color: #fff !important; border: none !important; }
     .staff-card:not(.is-ojt) .ojt-btn { display: none !important; }
     .staff-card:not(.is-kobutsu) .kobutsu-btn { display: none !important; }
     
-    /* 異動・昇格バッジ：元の色をそのまま印刷に適用 */
-    .badge-container { top: -6px; left: -2px; gap: 1px; }
-    .badge { font-size: 0.55em; padding: 1px 3px; border-radius: 3px; border: none !important; box-shadow: none !important; color: #fff !important; font-weight: bold; }
-    /* バッジ背景色の再定義（保険） */
+    .badge-container { top: -5px; left: -2px; gap: 1px; }
+    .badge { font-size: 0.5em; padding: 1px 2px; border-radius: 2px; border: none !important; box-shadow: none !important; color: #fff !important; font-weight: bold; }
     .badge-move { background-color: #d69e2e !important; }
     .badge-up { background-color: #e53e3e !important; }
     .badge-down { background-color: #3182ce !important; }

@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>店舗間スタッフ配置表（クラウド版）</title>
+<!-- ★ Supabaseと通信するための特別なツールを読み込みます -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     画面用デザイン
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  body { 
+    font-family: 'Helvetica Neue', Arial, sans-serif; 
+    background-color: #f5f7fa; color: #333; 
+    padding: 10px; max-width: 100%; margin: 0; 
+    font-size: 13px; 
+    -webkit-print-color-adjust: exact !important; 
+    print-color-adjust: exact !important;
+  }
+  
+  .action-bar {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;
+    background: #fff; padding: 8px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  .action-group {
+    display: flex; align-items: center; gap: 5px; padding: 5px 8px;
+    background: #f7fafc; border-radius: 4px; border: 1px solid #e2e8f0;
+  }
+  .action-group-title { font-size: 0.85em; font-weight: bold; color: #4a5568; margin-right: 2px; }
+  .input-month, .input-select, .input-text { padding: 4px; border: 1px solid #cbd5e0; border-radius: 3px; font-size: 0.9em; background: #fff; }
+  
+  .btn { padding: 6px 10px; border: none; border-radius: 3px; font-size: 0.85em; font-weight: bold; cursor: pointer; color: #fff; transition: background 0.2s; }
+  .btn-save { background: #4a5568; } .btn-save:hover { background: #2d3748; }
+  .btn-load { background: #38b2ac; } .btn-load:hover { background: #319795; }
+  .btn-report { background: #3182ce; } .btn-report:hover { background: #2b6cb0; }
+  .btn-past-report { background: #805ad5; } .btn-past-report:hover { background: #6b46c1; }
+  .btn-add { background: #ed8936; } .btn-add:hover { background: #dd6b20; }
+  .btn-cancel { background: #a0aec0; } .btn-cancel:hover { background: #718096; }
+  .btn-print { background: #4299e1; } .btn-print:hover { background: #3182ce; }
+  .btn-delete { background: #fc8181; } .btn-delete:hover { background: #f56565; }
+  .btn-csv { background: #2f855a; } .btn-csv:hover { background: #22543d; } 
+  .btn-roumu { background: #805ad5; } .btn-roumu:hover { background: #6b46c1; } 
+  .btn-clear-flags { background: #ecc94b; color: #744210; } .btn-clear-flags:hover { background: #d69e2e; }
+  .btn-log { background: #718096; } .btn-log:hover { background: #4a5568; }
+
+  .region-tabs { display: flex; gap: 8px; margin-bottom: 8px; }
+  .tab-btn {
+    padding: 8px 16px; border: 2px solid #cbd5e0; border-radius: 6px; 
+    background: #edf2f7; cursor: pointer; font-weight: bold; color: #4a5568; font-size: 1em;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { background: #e2e8f0; }
+  .tab-btn.active { background: #3182ce; color: #fff; border-color: #3182ce; box-shadow: 0 2px 4px rgba(49,130,206,0.3); }
+
+  .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+  .modal-content { background: #fff; padding: 20px; border-radius: 6px; width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+  .modal-content h3 { margin-top: 0; color: #2d3748; font-size: 1.1em; }
+  .form-group { margin-bottom: 12px; display: flex; flex-direction: column; gap: 3px; }
+  .form-group label { font-weight: bold; font-size: 0.85em; color: #4a5568; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px; }
+
+  #report-area { display: none; background: #fff; padding: 10px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 10px; border-left: 5px solid #3182ce; position: relative; }
+  .btn-close-report { position: absolute; top: 8px; right: 10px; background: #e2e8f0; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-weight: bold; font-size: 0.8em; color: #4a5568; }
+  .btn-close-report:hover { background: #cbd5e0; }
+  .report-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.85em; }
+  .report-table th, .report-table td { border: 1px solid #e2e8f0; padding: 4px; text-align: left; }
+  .report-table th { background: #edf2f7; }
+
+  .board { display: flex; flex-direction: column; gap: 4px; } 
+  
+  .store-row { 
+    background: #fff; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
+    padding: 4px; display: flex; align-items: stretch; cursor: grab; 
+  }
+  .store-row:active { cursor: grabbing; }
+  
+  .area-name {
+    width: 60px; font-size: 0.8em; font-weight: bold; color: #4a5568; background: #edf2f7;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    border-radius: 3px; padding: 2px; margin-right: 6px; flex-shrink: 0; gap: 2px;
+  }
+  .store-info {
+    width: 140px; display: flex; flex-direction: column; justify-content: center;
+    border-right: 2px solid #edf2f7; padding-right: 6px; margin-right: 6px; flex-shrink: 0;
+  }
+  .store-name-container { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;}
+  .store-name { font-weight: bold; font-size: 0.95em; }
+  .edit-btn { background: none; border: none; cursor: pointer; font-size: 0.85em; opacity: 0.4; padding: 0; }
+  .edit-btn:hover { opacity: 1; }
+
+  .staff-counts { display: flex; flex-direction: column; gap: 2px; }
+  .c-badge { display: inline-block; padding: 1px 3px; border-radius: 2px; font-size: 0.65em; font-weight: bold; color: #fff; text-align: center; line-height: 1.2;}
+  .c-total { background: #4a5568; }
+  .c-details { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+  .c-reg { background: #3182ce; }
+  .c-short { background: #dd6b20; }
+  .c-part { background: #38b2ac; }
+  .c-outsource { background: #718096; }
+
+  .staff-wrapper { flex-grow: 1; display: flex; flex-direction: column; gap: 0; min-height: 40px; }
+
+  .special-staff-list { 
+    display: none; gap: 4px; align-items: flex-start; 
+    padding: 10px 4px 4px 4px; background: #faf5ff; border-radius: 3px; border: 1px dashed #b794f4; 
+    flex-wrap: wrap; position: relative; margin-bottom: 4px;
+  }
+  .special-staff-list.drag-over { border-color: #805ad5; background: #f3ebff; }
+  .special-staff-list::before {
+    content: "MGR・販促";
+    position: absolute; top: -6px; left: 4px; background: #805ad5; color: #fff;
+    font-size: 0.6em; padding: 1px 4px; border-radius: 8px; font-weight: bold;
+  }
+
+  .staff-list { 
+    display: flex; gap: 4px; min-height: 40px; align-items: flex-start; 
+    padding: 4px; background: #fafbfc; border-radius: 3px; border: 1px dashed transparent; 
+    flex-wrap: wrap; 
+  }
+  .staff-list.drag-over { border-color: #3182ce; background: #ebf8ff; border-style: dashed; }
+  
+  .staff-card { 
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 3px; 
+    padding: 4px; cursor: grab; display: flex; flex-direction: column; 
+    gap: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); width: 95px; position: relative;
+    transition: all 0.2s; box-sizing: border-box;
+  }
+  .staff-card:active { cursor: grabbing; }
+  
+  .emp-id-text { font-size: 0.65em; color: #718096; line-height: 1; display: block; margin-bottom: 1px; }
+  
+  .staff-name-container { display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; gap: 1px; margin-bottom: 2px;}
+  .name-row { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; gap: 1px; }
+  .name-text { font-weight: bold; font-size: 0.85em; line-height: 1.1; margin-top: 0; flex-grow: 1; word-break: break-all; }
+  
+  .company-text:not(:empty) { 
+    display: block; font-size: 0.65em; color: #718096; line-height: 1.1; 
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
+  }
+  
+  .staff-actions { display: flex; gap: 1px; flex-shrink: 0; align-items: center; }
+  
+  .ojt-btn, .kobutsu-btn { 
+    font-size: 0.6em; padding: 1px 2px; border: 1px solid #cbd5e0; border-radius: 2px;
+    background: #fff; color: #a0aec0; cursor: pointer; font-weight: bold; transition: all 0.2s;
+  }
+  .staff-card.is-ojt .ojt-btn { background: #48bb78; color: #fff; border-color: #48bb78; }
+  .staff-card.is-kobutsu .kobutsu-btn { background: #805ad5; color: #fff; border-color: #805ad5; }
+  
+  .staff-card.is-kobutsu { border-left: 2px solid #805ad5; } 
+  .staff-card.is-ojt { border-left: 2px solid #48bb78; } 
+
+  .delete-btn { background: none; border: none; color: #cbd5e0; cursor: pointer; font-size: 1.1em; padding: 0; line-height: 1; margin-left: 1px; }
+  .delete-btn:hover { color: #e53e3e; }
+  
+  .staff-role { font-size: 0.75em; padding: 1px; border: 1px solid #cbd5e0; border-radius: 2px; background: #f7fafc; cursor: pointer; width: 100%; box-sizing: border-box;}
+
+  .badge-container { position: absolute; top: -7px; left: -4px; display: flex; gap: 2px; z-index: 10; }
+  .badge { color: white; font-size: 0.6em; padding: 1px 3px; border-radius: 8px; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.15); line-height: 1;}
+  .badge-move { background: #d69e2e; }
+  .badge-up { background: #e53e3e; }
+  .badge-down { background: #3182ce; }
+  .badge-new { background: #38b2ac; }
+
+  /* ローディング画面 */
+  #loading-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index: 999; display: flex; justify-content: center; align-items: center; font-size: 1.5em; font-weight: bold; color: #3182ce; }
+  
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     ★ 全体配置表 PDF出力（横向き）用デザイン
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  @media print {
+    @page { size: A4 landscape; margin: 6mm 5mm; }
+    body { background-color: #fff !important; padding: 0; margin: 0; color: #333; font-family: "Yu Gothic", "Meiryo", sans-serif; font-size: 10px; }
+    .action-bar, .delete-btn, .edit-btn, .modal-overlay, #report-area, .region-tabs, #loading-overlay { display: none !important; }
+    h2#page-title { text-align: center; border-bottom: 1px solid #333; padding-bottom: 2px; margin-top: 0; margin-bottom: 5px; font-size: 14px; }
+    .board { display: block !important; border-top: 1px solid #333; border-bottom: 1px solid #333; padding: 2px 0; }
+    .store-row { box-shadow: none !important; border-radius: 0; padding: 3px 0; margin: 0; border-bottom: 1px dotted #ccc; display: flex; align-items: center; background: #fff !important; break-inside: avoid; page-break-inside: avoid; }
+    .area-name { background: #edf2f7 !important; color: #4a5568; font-size: 0.8em; width: 50px; border: none; border-radius: 2px; padding: 2px; margin-right: 4px; }
+    .store-info { border-right: 1px solid #ccc; width: 130px; padding: 1px 4px 1px 0; margin-right: 4px; }
+    .store-name { font-size: 1em; font-weight: bold; margin-bottom: 2px; }
+    
+    .staff-counts { flex-direction: column; gap: 2px; width: 100%; }
+    .c-details { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 2px !important; width: 100%; }
+    
+    .staff-wrapper { gap: 0; }
+    .special-staff-list { padding: 6px 4px 2px 4px; background: transparent !important; border: 1px dashed #999 !important; margin-bottom: 2px; gap: 2px; }
+    .special-staff-list::before { background: #fff !important; color: #000 !important; border: 1px solid #000; top: -5px; left: 3px; font-size: 0.55em; padding: 0 3px; }
+    .staff-list { background: transparent !important; border: none !important; padding: 0; gap: 2px; }
+    
+    .staff-card { box-shadow: none !important; border: 1px solid #999 !important; background: #fff !important; border-radius: 2px; padding: 2px; width: 75px; gap: 1px; }
+    .staff-card.is-kobutsu { border-left: 2px solid #805ad5 !important; } 
+    .staff-card.is-ojt { border-left: 2px solid #48bb78 !important; } 
+    .staff-card.status-moved { background: #fffff0 !important; border-color: #ecc94b !important; }
+    .staff-card.status-up { background: #fff5f5 !important; border-color: #e53e3e !important; }
+    .staff-card.status-down { background: #ebf8ff !important; border-color: #3182ce !important; }
+    .staff-card.status-new { background: #e6fffa !important; border-color: #38b2ac !important; }
+    
+    .emp-id-text { font-size: 0.6em; color: #333; display: block; margin-bottom: 0; }
+    .name-text { font-size: 0.9em; margin: 0; }
+    
+    .staff-card[data-company]:not([data-company=""]) .name-text { display: none !important; }
+    .staff-card[data-company]:not([data-company=""]) .company-text:not(:empty) { 
+      display: block !important; font-size: 0.9em !important; font-weight: bold !important;
+      color: #333 !important; margin-top: 0 !important; white-space: normal !important; 
+    }
+    .company-text:empty { display: none !important; }
+    
+    .staff-role { border: none; background: transparent; -webkit-appearance: none; appearance: none; padding: 0; font-size: 0.75em; font-weight: normal; color: #333; }
+    .staff-actions { gap: 1px; }
+    .ojt-btn, .kobutsu-btn { font-size: 0.6em !important; padding: 0 2px !important; border-radius: 1px !important; border: none !important; box-shadow: none !important; }
+    .staff-card:not(.is-ojt) .ojt-btn { display: none !important; }
+    .staff-card:not(.is-kobutsu) .kobutsu-btn { display: none !important; }
+    .badge-container { top: -6px; left: 0px; gap: 1px; }
+    .badge { font-size: 0.55em; padding: 0 2px; border-radius: 2px; border: none; box-shadow: none; color: #fff !important; }
+    .c-badge { font-size: 0.65em; padding: 1px 2px; border-radius: 2px; border: 1px solid #666; color: #000 !important; background: #fff !important;}
+  }
+</style>
+</head>
+<body>
+<!-- 通信中のぐるぐる画面 -->
+<div id="loading-overlay">☁️ クラウドと通信中...</div>
+
+<div class="region-tabs">
+  <button class="tab-btn active" data-target="関東" onclick="switchRegion('関東')">関東エリア</button>
+  <button class="tab-btn" data-target="東海" onclick="switchRegion('東海')">東海エリア</button>
+</div>
+
+<h2 id="page-title" style="margin-top: 0; margin-bottom: 10px;">店舗間スタッフ配置表（クラウド版）</h2>
+
+<div class="action-bar">
+  <div class="action-group" style="background: #fff5f5; border-color: #feb2b2;">
+    <span class="action-group-title">【現在の作業】</span>
+    <button class="btn btn-add" onclick="openModal()">＋ 新入社員／委託</button>
+    <button class="btn btn-report" onclick="generateCurrentReport()">📊 変更レポート</button>
+    <button class="btn btn-clear-flags" onclick="clearChangeFlags()" title="現在の配置を基準として設定し、すべての変更バッジを消去します">🧹 フラグをクリア(新月準備)</button>
+  </div>
+
+  <div class="action-group" style="background: #ebf8ff; border-color: #bee3f8;">
+    <span class="action-group-title">【データ保存】</span>
+    <input type="month" id="save-month" class="input-month">
+    <button class="btn btn-save" onclick="saveHistoryData()">☁️ クラウドへ記憶する</button>
+    <button class="btn btn-log" onclick="openLogModal()">📜 保存ログ</button>
+  </div>
+
+  <div class="action-group" style="background: #faf5ff; border-color: #e9d8fd;">
+    <span class="action-group-title">【過去のデータ】</span>
+    <select id="history-select" class="input-select"><option value="">データなし</option></select>
+    <button class="btn btn-load" onclick="loadPastData()">📂 復元</button>
+    <button class="btn btn-past-report" onclick="showPastReport()">📋 履歴</button>
+    <button class="btn btn-delete" onclick="deleteHistoryData()" title="選んだ月のデータを削除します">🗑️ 削除</button>
+  </div>
+
+  <div class="action-group" style="background: #e6fffa; border-color: #b2f5ea;">
+    <span class="action-group-title">【出力・共有】</span>
+    <button class="btn btn-print" onclick="window.print()">🖨️ 表示中の配置表(PDF)</button>
+    <button class="btn btn-roumu" onclick="openRoumuModal()">📄 労務用依頼書</button>
+    <button class="btn btn-csv" onclick="exportToExcel()">📊 Excel出力</button>
+  </div>
+
+  <div class="action-group" style="background: #edf2f7; border-color: #cbd5e0;">
+    <button class="btn btn-cancel" onclick="resetAllData()" title="現在表示している地域のデータをクラウドから消去して初期状態に戻します">⚙️ リセット</button>
+  </div>
+</div>
+
+<div id="report-area">
+  <button class="btn-close-report" onclick="closeReport()">✖ 閉じる</button>
+  <h3 id="report-title" style="margin-top: 0; margin-bottom: 5px; font-size: 1.1em;">📋 変更レポート</h3>
+  <table class="report-table">
+    <thead>
+      <tr><th style="width: 15%;">名前</th><th style="width: 15%;">変更タイプ</th><th style="width: 70%;">詳細</th></tr>
+    </thead>
+    <tbody id="report-tbody"></tbody>
+  </table>
+</div>
+
+<div class="board" id="board"></div>
+
+<!-- 新入社員／業務委託 追加モーダル -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal-content">
+    <h3>＋ スタッフ・業務委託を追加</h3>
+    <div class="form-group">
+      <label>社員番号 (委託の場合は「-」等)</label>
+      <input type="text" id="new-staff-empid" class="input-text" placeholder="例：12345 または -">
+    </div>
+    <div class="form-group">
+      <label>氏名 (個人名)</label>
+      <input type="text" id="new-staff-name" class="input-text" placeholder="例：山田 太郎">
+    </div>
+    <div class="form-group">
+      <label>委託先 会社名 (※業務委託の場合のみ)</label>
+      <input type="text" id="new-staff-company" class="input-text" list="company-list" placeholder="例：(株)アルファサポート">
+      <datalist id="company-list">
+        <option value="(株)アルファサポート">
+        <option value="ベータサービス(株)">
+        <option value="ガンマスタッフィング(有)">
+      </datalist>
+    </div>
+    <div class="form-group">
+      <label>役職</label>
+      <select id="new-staff-role" class="input-select">
+        <option value="マネージャー">マネージャー</option>
+        <option value="販売促進G">販売促進G</option>
+        <option value="店長(S)">店長(S)</option>
+        <option value="店長(A)">店長(A)</option>
+        <option value="店長(B)">店長(B)</option>
+        <option value="店長(C)">店長(C)</option>
+        <option value="副店長">副店長</option>
+        <option value="一般" selected>一般</option>
+        <option value="時短">時短</option>
+        <option value="パート">パート</option>
+        <option value="業務委託">業務委託</option>
+      </select>
+    </div>
+    <div class="form-group" style="flex-direction: row; align-items: center; gap: 10px; margin-bottom: 5px;">
+      <input type="checkbox" id="new-staff-ojt" style="width: 16px; height: 16px;">
+      <label for="new-staff-ojt" style="margin: 0; cursor: pointer;">OJT担当</label>
+    </div>
+    <div class="form-group" style="flex-direction: row; align-items: center; gap: 10px;">
+      <input type="checkbox" id="new-staff-kobutsu" style="width: 16px; height: 16px;">
+      <label for="new-staff-kobutsu" style="margin: 0; cursor: pointer;">古物商</label>
+    </div>
+    <div class="form-group">
+      <label>配属先店舗</label>
+      <select id="new-staff-store" class="input-select"></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-add" onclick="addStaff()">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 労務用 異動依頼書 出力モーダル -->
+<div class="modal-overlay" id="roumu-modal">
+  <div class="modal-content">
+    <h3>📄 労務G向け 異動依頼書出力</h3>
+    <p style="font-size: 0.85em; color: #718096; margin-top: 0; line-height: 1.4;">
+      現在表示中の地域で変更があったスタッフを抽出し、公式フォーマットで出力します。
+    </p>
+    <div class="form-group">
+      <label>辞令日</label>
+      <input type="date" id="roumu-jirei" class="input-text">
+    </div>
+    <div class="form-group">
+      <label>異動日（発効日）</label>
+      <input type="date" id="roumu-idou" class="input-text">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeRoumuModal()">キャンセル</button>
+      <button class="btn btn-roumu" onclick="printRoumuDoc()">PDFを出力する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 保存・操作ログ モーダル -->
+<div class="modal-overlay" id="log-modal">
+  <div class="modal-content" style="width: 450px; max-height: 80vh; overflow-y: auto;">
+    <h3>📜 保存・操作ログ（クラウド）</h3>
+    <p style="font-size: 0.85em; color: #718096; margin-top: 0; line-height: 1.4;">
+      いつ、どのデータを操作したかの履歴です。（最新100件）
+    </p>
+    <table class="report-table">
+      <thead>
+        <tr><th style="width: 35%;">日時</th><th>操作内容</th></tr>
+      </thead>
+      <tbody id="log-tbody"></tbody>
+    </table>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" style="margin-right: auto;" onclick="clearLog()">ログを消去</button>
+      <button class="btn btn-cancel" onclick="closeLogModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ★ クラウド連携設定（金庫の鍵） ★
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const supabaseUrl = 'https://dusilaoursfezfgnvwan.supabase.co';
+  const supabaseKey = 'sb_publishable_vjvmVoU59_QbG-dDkoxBqA_ILEOW0iQ';
+
+  const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+  // --- クラウド通信用の秘密の関数 ---
+  async function getCloudData(key) {
+    try {
+      const { data, error } = await supabaseClient.from('app_data').select('json_data').eq('key_name', key).single();
+      if (error || !data) return null;
+      return data.json_data;
+    } catch (e) { return null; }
+  }
+  async function setCloudData(key, value) {
+    try {
+      await supabaseClient.from('app_data').upsert({ key_name: key, json_data: value });
+    } catch (e) { console.error(e); }
+  }
+  async function removeCloudData(key) {
+    try {
+      await supabaseClient.from('app_data').delete().eq('key_name', key);
+    } catch (e) { console.error(e); }
+  }
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  let currentRegion = '関東'; 
+  
+  const initialStoreData = {
+    '関東': [
+      { area: '東京エリア', name: '新宿本店', staff: [ { id: 's1', empId: '1001', name: '渡辺', role: '販売促進G' }, { id: 's2', empId: '1002', name: '林', role: '店長(S)', isKobutsu: false }, { id: 's3', empId: '1003', name: '高橋', role: '副店長', isOJT: true }, { id: 's4', empId: '1004', name: '近藤', role: '一般' }, { id: 's5', empId: '1005', name: '田中', role: '一般', isOJT: true }, { id: 's6', empId: '1006', name: '森', role: '一般', isKobutsu: true }, { id: 's8', empId: '1008', name: '伊藤', role: '時短' }, { id: 's10', empId: '1010', name: '石井', role: 'パート' }, { id: 's_out1', empId: '-', name: '山田', company: '(株)アルファサポート', role: '業務委託' } ] },
+      { area: '東京エリア', name: '渋谷店', staff: [ { id: 's12', empId: '1012', name: '渡辺', role: '店長(A)', isKobutsu: true }, { id: 's13', empId: '1013', name: '鈴木', role: '副店長', isOJT: true }, { id: 's14', empId: '1014', name: '中島', role: '一般', isKobutsu: true }, { id: 's16', empId: '1016', name: '前田', role: '一般', isOJT: true }, { id: 's18', empId: '1018', name: '石川', role: '時短' }, { id: 's19', empId: '1019', name: '近藤', role: 'パート' }, { id: 's_out2', empId: '-', name: '佐藤', company: 'ベータサービス(株)', role: '業務委託' } ] },
+      { area: '東京エリア', name: '池袋店', staff: [ { id: 's21', empId: '1021', name: '岡田', role: '店長(C)', isKobutsu: true }, { id: 's22', empId: '1022', name: '高橋', role: '副店長', isOJT: true }, { id: 's23', empId: '1023', name: '渡辺', role: '一般' }, { id: 's26', empId: '1026', name: '鈴木', role: '時短' }, { id: 's28', empId: '1028', name: '橋本', role: 'パート' }, { id: 's_out3', empId: '-', name: '高橋', company: 'ガンマスタッフィング(有)', role: '業務委託' } ] },
+      { area: '東京エリア', name: '銀座店', staff: [ { id: 's29', empId: '1029', name: '池田', role: 'マネージャー' }, { id: 's30', empId: '1030', name: '石川', role: '店長(S)', isKobutsu: false }, { id: 's31', empId: '1031', name: '岡田', role: '副店長', isOJT: true }, { id: 's32', empId: '1032', name: '近藤', role: '一般', isKobutsu: true }, { id: 's35', empId: '1035', name: '木村', role: '時短' }, { id: 's36', empId: '1036', name: '林', role: 'パート' } ] },
+      { area: '東京エリア', name: '上野店', staff: [ { id: 's38', empId: '1038', name: '佐藤', role: '店長(S)', isKobutsu: false }, { id: 's39', empId: '1039', name: '長谷川', role: '副店長', isOJT: true }, { id: 's40', empId: '1040', name: '渡辺', role: '一般', isOJT: true }, { id: 's44', empId: '1044', name: '池田', role: '時短' }, { id: 's46', empId: '1046', name: '山下', role: 'パート' } ] },
+      { area: '東京エリア', name: '秋葉原店', staff: [ { id: 's47', empId: '1047', name: '加藤', role: '販売促進G' }, { id: 's48', empId: '1048', name: '井上', role: '店長(S)', isKobutsu: false }, { id: 's49', empId: '1049', name: '田中', role: '副店長', isOJT: true }, { id: 's50', empId: '1050', name: '近藤', role: '一般' }, { id: 's54', empId: '1054', name: '中島', role: '時短' }, { id: 's56', empId: '1056', name: '小川', role: 'パート' } ] },
+      { area: '東京エリア', name: '品川店', staff: [ { id: 's57', empId: '1057', name: '池田', role: '店長(C)', isKobutsu: false }, { id: 's58', empId: '1058', name: '石井', role: '副店長', isOJT: true }, { id: 's59', empId: '1059', name: '中島', role: '一般', isKobutsu: true }, { id: 's63', empId: '1063', name: '渡辺', role: '時短' }, { id: 's65', empId: '1065', name: '山口', role: 'パート' } ] },
+      { area: '東京エリア', name: '立川店', staff: [ { id: 's66', empId: '1066', name: '木村', role: '店長(C)', isKobutsu: true }, { id: 's67', empId: '1067', name: '長谷川', role: '副店長', isOJT: true }, { id: 's68', empId: '1068', name: '佐々木', role: '一般' }, { id: 's71', empId: '1071', name: '近藤', role: '時短' }, { id: 's72', empId: '1072', name: '前田', role: 'パート' } ] },
+      { area: '東京エリア', name: '町田店', staff: [ { id: 's73', empId: '1073', name: '石川', role: '店長(S)', isKobutsu: true }, { id: 's74', empId: '1074', name: '青木', role: '副店長', isOJT: true }, { id: 's75', empId: '1075', name: '森', role: '一般', isKobutsu: true }, { id: 's79', empId: '1079', name: '田中', role: '時短' }, { id: 's80', empId: '1080', name: '小川', role: 'パート' } ] },
+      { area: '東京エリア', name: '八王子店', staff: [ { id: 's82', empId: '1082', name: '山下', role: '店長(B)', isKobutsu: true }, { id: 's83', empId: '1083', name: '石井', role: '副店長', isOJT: true }, { id: 's84', empId: '1084', name: '佐々木', role: '一般', isKobutsu: true }, { id: 's88', empId: '1088', name: '中村', role: '時短' }, { id: 's90', empId: '1090', name: '田中', role: 'パート' } ] },
+      { area: '神奈川エリア', name: '横浜店', staff: [ { id: 's92', empId: '1092', name: '阿部', role: '販売促進G' }, { id: 's93', empId: '1093', name: '山本', role: '店長(C)', isKobutsu: false }, { id: 's94', empId: '1094', name: '山崎', role: '副店長', isOJT: true }, { id: 's98', empId: '1098', name: '森', role: '時短' }, { id: 's_out4', empId: '-', name: '伊藤', company: 'ベータサービス(株)', role: '業務委託' } ] },
+      { area: '神奈川エリア', name: '川崎店', staff: [ { id: 's101', empId: '1101', name: '岡田', role: 'マネージャー' }, { id: 's102', empId: '1102', name: '前田', role: '店長(S)', isKobutsu: true }, { id: 's103', empId: '1103', name: '近藤', role: '副店長', isOJT: true }, { id: 's107', empId: '1107', name: '坂本', role: '時短' }, { id: 's109', empId: '1109', name: '阿部', role: 'パート' } ] },
+      { area: '神奈川エリア', name: '溝の口店', staff: [ { id: 's111', empId: '1111', name: '伊藤', role: '店長(B)', isKobutsu: true }, { id: 's112', empId: '1112', name: '山下', role: '副店長', isOJT: true }, { id: 's113', empId: '1113', name: '中島', role: '一般', isOJT: true, isKobutsu: true }, { id: 's117', empId: '1117', name: '松本', role: '時短' }, { id: 's119', empId: '1119', name: '山本', role: 'パート' } ] },
+      { area: '埼玉エリア', name: '大宮店', staff: [ { id: 's120', empId: '1120', name: '近藤', role: '店長(B)', isKobutsu: false }, { id: 's121', empId: '1121', name: '藤田', role: '副店長', isOJT: true }, { id: 's125', empId: '1125', name: '佐々木', role: '時短' } ] },
+      { area: '埼玉エリア', name: '浦和店', staff: [ { id: 's127', empId: '1127', name: '井上', role: '店長(A)', isKobutsu: true }, { id: 's128', empId: '1128', name: '鈴木', role: '副店長', isOJT: true }, { id: 's129', empId: '1129', name: '山下', role: '一般' } ] },
+      { area: '千葉エリア', name: '千葉店', staff: [ { id: 's136', empId: '1136', name: '橋本', role: 'マネージャー' }, { id: 's137', empId: '1137', name: '小川', role: '店長(A)', isKobutsu: true }, { id: 's138', empId: '1138', name: '長谷川', role: '副店長', isOJT: true } ] },
+      { area: '千葉エリア', name: '船橋店', staff: [ { id: 's146', empId: '1146', name: '斎藤', role: '店長(B)', isKobutsu: true }, { id: 's147', empId: '1147', name: '田中', role: '副店長', isOJT: true }, { id: 's148', empId: '1148', name: '長谷川', role: '一般' } ] },
+      { area: '本社直轄', name: '本部', staff: [ { id: 's153', empId: '1153', name: '吉田', role: 'マネージャー' }, { id: 's154', empId: '1154', name: '渡辺', role: '販売促進G' }, { id: 's155', empId: '1155', name: '森', role: '販売促進G' } ] }
+    ],
+    '東海': [
+      { area: '愛知エリア', name: '名古屋本店', staff: [ { id: 't1', empId: '2001', name: '山田', role: '店長(S)', isKobutsu: true }, { id: 't2', empId: '2002', name: '佐藤', role: '副店長', isOJT: true }, { id: 't5', empId: '2005', name: '伊藤', role: '時短' }, { id: 't_out1', empId: '-', name: '中村', company: '(株)アルファサポート', role: '業務委託' } ] },
+      { area: '愛知エリア', name: '栄店', staff: [ { id: 't7', empId: '2007', name: '中村', role: '店長(A)' }, { id: 't8', empId: '2008', name: '小林', role: '副店長' }, { id: 't9', empId: '2009', name: '加藤', role: '一般', isOJT: true } ] },
+      { area: '愛知エリア', name: '豊田店', staff: [ { id: 't12', empId: '2012', name: '佐々木', role: '店長(B)' }, { id: 't13', empId: '2013', name: '山口', role: '副店長', isOJT: true }, { id: 't14', empId: '2014', name: '松本', role: '一般' } ] },
+      { area: '静岡エリア', name: '静岡店', staff: [ { id: 't17', empId: '2017', name: '林', role: '店長(A)', isKobutsu: true }, { id: 't18', empId: '2018', name: '斎藤', role: '副店長' }, { id: 't19', empId: '2019', name: '清水', role: '一般' } ] },
+      { area: '三重エリア', name: '四日市店', staff: [ { id: 't21', empId: '2021', name: '森', role: 'マネージャー' }, { id: 't22', empId: '2022', name: '池田', role: '店長(C)' }, { id: 't23', empId: '2023', name: '橋本', role: '副店長', isOJT: true } ] }
+    ]
+  };
+
+  const roleRank = { 'マネージャー': 10, '販売促進G': 9, '店長(S)': 8, '店長(A)': 7, '店長(B)': 6, '店長(C)': 5, '副店長': 4, '一般': 3, '時短': 2, 'パート': 1, '業務委託': 0 };
+  const roleList = ['マネージャー', '販売促進G', '店長(S)', '店長(A)', '店長(B)', '店長(C)', '副店長', '一般', '時短', 'パート', '業務委託'];
+
+  function getStorageKey(baseKey) {
+    return `${baseKey}_${currentRegion}`;
+  }
+
+  function showLoading() { document.getElementById('loading-overlay').style.display = 'flex'; }
+  function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
+
+  async function switchRegion(regionName) {
+    if (currentRegion !== regionName) {
+      showLoading();
+      await saveCurrentMaster(); 
+      currentRegion = regionName;
+      
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        if(btn.dataset.target === regionName) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+
+      closeReport();
+      await initApp(); 
+    }
+  }
+
+  async function addActionLog(message) {
+    let logs = await getCloudData(getStorageKey('staffApp_actionLog')) || [];
+    const now = new Date();
+    const timeStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    logs.unshift({ time: timeStr, message: `【${currentRegion}】` + message });
+    if (logs.length > 100) logs.pop(); 
+    await setCloudData(getStorageKey('staffApp_actionLog'), logs);
+  }
+
+  async function openLogModal() {
+    showLoading();
+    const logs = await getCloudData(getStorageKey('staffApp_actionLog')) || [];
+    const tbody = document.getElementById('log-tbody');
+    tbody.innerHTML = '';
+    if (logs.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="2" style="text-align:center; padding:15px;">【${currentRegion}】の保存・操作履歴はありません</td></tr>`;
+    } else {
+      logs.forEach(log => {
+        tbody.innerHTML += `<tr><td style="color:#718096; font-size:0.9em;">${log.time}</td><td>${log.message}</td></tr>`;
+      });
+    }
+    hideLoading();
+    document.getElementById('log-modal').style.display = 'flex';
+  }
+
+  function closeLogModal() { document.getElementById('log-modal').style.display = 'none'; }
+  
+  async function clearLog() {
+    if(confirm(`【${currentRegion}】のクラウドに記録されている保存・操作ログをすべて消去しますか？`)) {
+      showLoading();
+      await removeCloudData(getStorageKey('staffApp_actionLog'));
+      openLogModal();
+    }
+  }
+
+  function createRoleSelect(currentRole) {
+    let html = '<select class="staff-role">';
+    roleList.forEach(r => { html += `<option value="${r}" ${r === currentRole ? 'selected' : ''}>${r}</option>`; });
+    return html + '</select>';
+  }
+
+  function getInitialFlatData() {
+    const data = [];
+    initialStoreData[currentRegion].forEach(store => {
+      store.staff.forEach(person => {
+        data.push({ 
+          id: person.id, empId: person.empId || '', name: person.name, company: person.company || '', role: person.role, 
+          store: store.name, isOJT: person.isOJT || false, isKobutsu: person.isKobutsu || false 
+        });
+      });
+    });
+    return data;
+  }
+
+  function updatePageTitle() {
+    const monthVal = document.getElementById('save-month').value;
+    if (monthVal) {
+      const [year, month] = monthVal.split('-');
+      document.getElementById('page-title').innerText = `【${year}年${month}月】店舗間スタッフ配置表（${currentRegion}）`;
+    } else {
+      document.getElementById('page-title').innerText = `店舗間スタッフ配置表（${currentRegion}）`;
+    }
+  }
+
+  async function resetAllData() {
+    if (confirm(`【警告】\nクラウド上のデータを完全に消去し、コード内の初期状態に戻しますか？\n（※現在表示中の【${currentRegion}】エリアのデータのみリセットされます）`)) {
+      showLoading();
+      await removeCloudData(getStorageKey('staffApp_currentMaster'));
+      await removeCloudData(getStorageKey('staffApp_history'));
+      await removeCloudData(getStorageKey('staffApp_retired'));
+      await removeCloudData(getStorageKey('staffApp_actionLog')); 
+      alert(`【${currentRegion}】エリアのクラウドデータを初期化しました。`);
+      await initApp();
+    }
+  }
+
+  async function clearChangeFlags() {
+    if (!confirm(`【${currentRegion}】の現在画面に表示されている配置を「基準」として設定し、すべての【移動・昇格等のバッジ】を消去しますか？`)) return;
+
+    showLoading();
+    document.querySelectorAll('.staff-card').forEach(card => {
+      card.dataset.origin = card.closest('.store-row').querySelector('.store-name').textContent.trim();
+      card.dataset.originRole = card.querySelector('.staff-role').value;
+      card.dataset.originOjt = card.classList.contains('is-ojt');
+      card.dataset.originKobutsu = card.classList.contains('is-kobutsu');
+      card.classList.remove('new-staff', 'status-moved', 'status-up', 'status-down');
+      updateBadges(card);
+    });
+    
+    await removeCloudData(getStorageKey('staffApp_retired'));
+    await saveCurrentMaster();
+    await addActionLog('新月準備で変更フラグをクリアしました。');
+    hideLoading();
+    alert(`【${currentRegion}】の変更フラグをクリアしました！`);
+  }
+
+  function editArea(btn) {
+    const areaSpan = btn.previousElementSibling;
+    const oldName = areaSpan.textContent.trim();
+    const newName = prompt('新しいエリア名を入力してください', oldName);
+    if (newName && newName.trim() !== '' && newName !== oldName) {
+      areaSpan.textContent = newName.trim();
+      saveCurrentMaster();
+    }
+  }
+
+  function editStore(btn) {
+    const storeSpan = btn.previousElementSibling;
+    const oldName = storeSpan.textContent.trim();
+    const newName = prompt('新しい店舗名を入力してください', oldName);
+    if (newName && newName.trim() !== '' && newName !== oldName) {
+      const trimmedNewName = newName.trim();
+      storeSpan.textContent = trimmedNewName;
+      const row = btn.closest('.store-row');
+      row.querySelectorAll('.staff-card').forEach(card => {
+        if (card.dataset.origin === oldName) card.dataset.origin = trimmedNewName;
+      });
+      saveCurrentMaster(); updateStoreSelect();
+    }
+  }
+
+  function updateStoreSelect() {
+    const storeSelect = document.getElementById('new-staff-store');
+    if (!storeSelect) return;
+    const currentVal = storeSelect.value;
+    storeSelect.innerHTML = '';
+    document.querySelectorAll('.store-row').forEach(row => { 
+      const name = row.querySelector('.store-name').textContent.trim();
+      storeSelect.innerHTML += `<option value="${name}">${name}</option>`; 
+    });
+    if (currentVal) storeSelect.value = currentVal;
+  }
+
+  function updateBadges(card) {
+    const currentStore = card.closest('.store-row').querySelector('.store-name').textContent.trim();
+    const currentRole = card.querySelector('.staff-role').value;
+    const originStore = card.dataset.origin;
+    const originRole = card.dataset.originRole;
+    const isNew = card.classList.contains('new-staff');
+
+    let badgesHTML = '';
+    let isMoved = false, isUp = false, isDown = false;
+
+    if (isNew) badgesHTML += `<span class="badge badge-new">新入社員</span>`;
+    if (originStore && currentStore !== originStore) { badgesHTML += `<span class="badge badge-move">移動</span>`; isMoved = true; }
+    if (originRole && currentRole !== originRole) {
+      const currentRank = roleRank[currentRole]; const originRank = roleRank[originRole];
+      if (currentRank > originRank) { badgesHTML += `<span class="badge badge-up">昇格✨</span>`; isUp = true; } 
+      else if (currentRank < originRank) { badgesHTML += `<span class="badge badge-down">降格</span>`; isDown = true; }
+    }
+
+    let badgeContainer = card.querySelector('.badge-container');
+    if (!badgeContainer) {
+      badgeContainer = document.createElement('div');
+      badgeContainer.className = 'badge-container';
+      card.insertBefore(badgeContainer, card.firstChild);
+    }
+    badgeContainer.innerHTML = badgesHTML;
+
+    card.classList.remove('status-moved', 'status-up', 'status-down', 'status-new');
+    if (isNew) card.classList.add('status-new');
+    else if (isUp) card.classList.add('status-up');
+    else if (isDown) card.classList.add('status-down');
+    else if (isMoved) card.classList.add('status-moved');
+  }
+
+  async function saveCurrentMaster() {
+    const master = [];
+    document.querySelectorAll('.store-row').forEach(row => {
+      const area = row.querySelector('.area-text').textContent.trim();
+      const storeName = row.querySelector('.store-name').textContent.trim();
+      const staffList = [];
+      row.querySelectorAll('.staff-card').forEach(card => {
+        staffList.push({
+          id: card.dataset.id,
+          empId: card.dataset.empId || '',
+          name: card.querySelector('.name-text').textContent.trim(),
+          company: card.dataset.company || '', 
+          role: card.querySelector('.staff-role').value,
+          origin: card.dataset.origin,
+          originRole: card.dataset.originRole,
+          originOjt: card.dataset.originOjt,
+          originKobutsu: card.dataset.originKobutsu, 
+          isNew: card.classList.contains('new-staff'),
+          isOJT: card.classList.contains('is-ojt'),
+          isKobutsu: card.classList.contains('is-kobutsu') 
+        });
+      });
+      master.push({ area: area, name: storeName, staff: staffList });
+    });
+    await setCloudData(getStorageKey('staffApp_currentMaster'), master);
+    updateStaffCounts();
+  }
+
+  async function initApp() {
+    showLoading();
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+    
+    const savedMaster = await getCloudData(getStorageKey('staffApp_currentMaster'));
+    const storeData = savedMaster ? savedMaster : initialStoreData[currentRegion];
+
+    storeData.forEach(store => {
+      const row = document.createElement('div');
+      row.className = 'store-row';
+      row.dataset.region = currentRegion; 
+      row.draggable = true;
+      let staffHTML = '';
+      
+      store.staff.forEach(person => {
+        const origin = person.origin || store.name;
+        const originRole = person.originRole || person.role;
+        const originOjt = person.originOjt !== undefined ? person.originOjt : person.isOJT;
+        const originKobutsu = person.originKobutsu !== undefined ? person.originKobutsu : person.isKobutsu;
+        const newClass = person.isNew ? 'new-staff' : '';
+        const ojtClass = person.isOJT ? 'is-ojt' : '';
+        const kobutsuClass = person.isKobutsu ? 'is-kobutsu' : '';
+        const empIdText = person.empId ? person.empId : '';
+        const companyText = person.company ? person.company : ''; 
+        
+        staffHTML += `
+          <div class="staff-card ${newClass} ${ojtClass} ${kobutsuClass}" draggable="true" data-id="${person.id}" data-emp-id="${person.empId || ''}" data-company="${companyText}" data-origin="${origin}" data-origin-role="${originRole}" data-origin-ojt="${originOjt}" data-origin-kobutsu="${originKobutsu}">
+            <span class="emp-id-text">${empIdText}</span>
+            <div class="staff-name-container">
+              <div class="name-row">
+                <span class="name-text">${person.name}</span>
+                <div class="staff-actions">
+                  <button class="kobutsu-btn" title="古物商の切り替え">古</button>
+                  <button class="ojt-btn" title="OJT担当の切り替え">OJT</button>
+                  <button class="delete-btn" title="退職（削除）">×</button>
+                </div>
+              </div>
+              <span class="company-text">${companyText}</span>
+            </div>
+            ${createRoleSelect(person.role)}
+          </div>`;
+      });
+      
+      row.innerHTML = `
+        <div class="area-name">
+          <span class="area-text">${store.area}</span>
+          <button class="edit-btn" onclick="editArea(this)">✏️</button>
+        </div>
+        <div class="store-info">
+          <div class="store-name-container">
+            <span class="store-name">${store.name}</span>
+            <button class="edit-btn" onclick="editStore(this)">✏️</button>
+          </div>
+          <div class="staff-counts">
+            <div class="c-badge c-total">計 <span class="c-total-v">0</span>名</div>
+            <div class="c-details">
+              <span class="c-badge c-reg" title="正社員（MGR等含む）">正 <span class="c-reg-v">0</span></span>
+              <span class="c-badge c-short" title="時短社員">短 <span class="c-short-v">0</span></span>
+              <span class="c-badge c-part" title="パート">パ <span class="c-part-v">0</span></span>
+              <span class="c-badge c-outsource" title="業務委託">委 <span class="c-outsource-v">0</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="staff-wrapper">
+          <div class="special-staff-list drag-area"></div>
+          <div class="staff-list drag-area">${staffHTML}</div>
+        </div>
+      `;
+      board.appendChild(row);
+    });
+
+    updateStoreSelect();
+
+    const today = new Date();
+    if(!document.getElementById('save-month').value) {
+        document.getElementById('save-month').value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    }
+    updatePageTitle();
+    document.getElementById('save-month').addEventListener('change', updatePageTitle);
+    
+    await updateHistorySelect();
+    
+    document.querySelectorAll('.staff-wrapper').forEach(wrapper => sortStaff(wrapper));
+    document.querySelectorAll('.staff-card').forEach(card => updateBadges(card));
+    updateStaffCounts();
+
+    if (!savedMaster) await saveCurrentMaster();
+    hideLoading();
+  }
+
+  function updateStaffCounts() {
+    document.querySelectorAll('.store-row').forEach(row => {
+      const cards = Array.from(row.querySelectorAll('.staff-card'));
+      const total = cards.length;
+      let shortCount = 0; let partCount = 0; let regCount = 0; let outsourceCount = 0;
+      cards.forEach(card => {
+        const role = card.querySelector('.staff-role').value;
+        if (role === '時短') shortCount++; 
+        else if (role === 'パート') partCount++; 
+        else if (role === '業務委託') outsourceCount++; 
+        else regCount++; 
+      });
+      const cTotal = row.querySelector('.c-total-v'); 
+      const cReg = row.querySelector('.c-reg-v');
+      const cShort = row.querySelector('.c-short-v'); 
+      const cPart = row.querySelector('.c-part-v');
+      const cOutsource = row.querySelector('.c-outsource-v');
+      
+      if (cTotal) cTotal.innerText = total; 
+      if (cReg) cReg.innerText = regCount;
+      if (cShort) cShort.innerText = shortCount; 
+      if (cPart) cPart.innerText = partCount;
+      if (cOutsource) cOutsource.innerText = outsourceCount;
+    });
+  }
+
+  function openModal() { 
+    document.getElementById('add-modal').style.display = 'flex'; 
+    document.getElementById('new-staff-empid').value = ''; 
+    document.getElementById('new-staff-name').value = ''; 
+    document.getElementById('new-staff-company').value = ''; 
+    document.getElementById('new-staff-ojt').checked = false;
+    document.getElementById('new-staff-kobutsu').checked = false;
+  }
+  function closeModal() { document.getElementById('add-modal').style.display = 'none'; }
+  
+  function addStaff() {
+    const empId = document.getElementById('new-staff-empid').value.trim();
+    const name = document.getElementById('new-staff-name').value.trim();
+    const company = document.getElementById('new-staff-company').value.trim(); 
+    const role = document.getElementById('new-staff-role').value;
+    const storeName = document.getElementById('new-staff-store').value;
+    const isOJT = document.getElementById('new-staff-ojt').checked;
+    const isKobutsu = document.getElementById('new-staff-kobutsu').checked;
+    
+    if (!name) return alert('氏名を入力してください。');
+
+    let targetWrapper = null;
+    document.querySelectorAll('.store-row').forEach(row => {
+      if (row.querySelector('.store-name').textContent.trim() === storeName) targetWrapper = row.querySelector('.staff-wrapper');
+    });
+
+    if (targetWrapper) {
+      const card = document.createElement('div');
+      const ojtClass = isOJT ? 'is-ojt' : '';
+      const kobutsuClass = isKobutsu ? 'is-kobutsu' : '';
+      card.className = `staff-card new-staff ${ojtClass} ${kobutsuClass}`; 
+      card.draggable = true; card.dataset.id = 'staff-' + Date.now();
+      card.dataset.empId = empId;
+      card.dataset.company = company; 
+      card.dataset.origin = storeName; card.dataset.originRole = role; 
+      card.dataset.originOjt = isOJT; card.dataset.originKobutsu = isKobutsu;
+      
+      card.innerHTML = `
+        <span class="emp-id-text">${empId}</span>
+        <div class="staff-name-container">
+          <div class="name-row">
+            <span class="name-text">${name}</span>
+            <div class="staff-actions">
+              <button class="kobutsu-btn" title="古物商の切り替え">古</button>
+              <button class="ojt-btn" title="OJT担当の切り替え">OJT</button>
+              <button class="delete-btn" title="退職（削除）">×</button>
+            </div>
+          </div>
+          <span class="company-text">${company}</span>
+        </div>
+        ${createRoleSelect(role)}
+      `;
+      targetWrapper.querySelector('.staff-list').appendChild(card);
+      updateBadges(card); 
+      sortStaff(targetWrapper); saveCurrentMaster(); closeModal();
+      
+      const addedRow = targetWrapper.closest('.store-row');
+      if (addedRow.dataset.region !== currentRegion) {
+        alert(`${name} さんを【${addedRow.dataset.region}】の ${storeName} に追加しました。（現在表示中のタブとは異なります）`);
+      }
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('delete-btn')) {
+      if (confirm('このスタッフを退職（削除）しますか？')) { 
+        const card = e.target.closest('.staff-card');
+        const wrapper = card.closest('.staff-wrapper');
+        if (!card.classList.contains('new-staff')) {
+          (async () => {
+            let retired = await getCloudData(getStorageKey('staffApp_retired')) || [];
+            retired.push({
+              id: card.dataset.id,
+              empId: card.dataset.empId || '',
+              name: card.querySelector('.name-text').textContent.trim(),
+              company: card.dataset.company || '', 
+              role: card.dataset.originRole,
+              store: card.dataset.origin,
+              isOJT: card.dataset.originOjt === 'true',
+              isKobutsu: card.dataset.originKobutsu === 'true'
+            });
+            await setCloudData(getStorageKey('staffApp_retired'), retired);
+          })();
+        }
+        card.remove(); 
+        sortStaff(wrapper); saveCurrentMaster(); 
+      }
+    }
+    if (e.target.classList.contains('ojt-btn')) {
+      const card = e.target.closest('.staff-card');
+      card.classList.toggle('is-ojt'); saveCurrentMaster();
+    }
+    if (e.target.classList.contains('kobutsu-btn')) {
+      const card = e.target.closest('.staff-card');
+      card.classList.toggle('is-kobutsu'); saveCurrentMaster();
+    }
+  });
+
+  document.addEventListener('change', (e) => {
+    if (e.target.classList.contains('staff-role')) {
+      const card = e.target.closest('.staff-card');
+      updateBadges(card); 
+      sortStaff(card.closest('.staff-wrapper')); 
+      saveCurrentMaster(); 
+    }
+  });
+
+  function compareData(oldData, newData) {
+    const reportList = [];
+    if (!oldData) oldData = [];
+    
+    oldData.forEach(pastPerson => {
+      const currentPerson = newData.find(c => c.id === pastPerson.id);
+      if (!currentPerson) {
+        const displayName = pastPerson.company ? pastPerson.company : pastPerson.name;
+        reportList.push({ name: displayName, type: '<span class="tag-leave">退職</span>', detail: `${pastPerson.store}（${pastPerson.role}）から退職` });
+      } else {
+        let typeArr = []; let detailArr = [];
+        if (pastPerson.store !== currentPerson.store) { typeArr.push('<span class="tag-move">異動</span>'); detailArr.push(`【店舗】${pastPerson.store} ➔ ${currentPerson.store}`); }
+        if (pastPerson.role !== currentPerson.role) {
+          if (roleRank[currentPerson.role] > roleRank[pastPerson.role]) typeArr.push('<span class="tag-up">昇格</span>');
+          else typeArr.push('<span class="tag-down">降格</span>');
+          detailArr.push(`【役職】${pastPerson.role} ➔ ${currentPerson.role}`);
+        }
+        if (!pastPerson.isOJT && currentPerson.isOJT) { typeArr.push('<span style="color:#48bb78; font-weight:bold;">OJT任命</span>'); detailArr.push('OJT担当に設定'); } 
+        else if (pastPerson.isOJT && !currentPerson.isOJT) { typeArr.push('<span style="color:#a0aec0; font-weight:bold;">OJT解除</span>'); detailArr.push('OJT担当を解除'); }
+        if (!pastPerson.isKobutsu && currentPerson.isKobutsu) { typeArr.push('<span style="color:#805ad5; font-weight:bold;">古物設定</span>'); detailArr.push('古物商に設定'); } 
+        else if (pastPerson.isKobutsu && !currentPerson.isKobutsu) { typeArr.push('<span style="color:#a0aec0; font-weight:bold;">古物解除</span>'); detailArr.push('古物商を解除'); }
+
+        if (typeArr.length > 0) {
+          const displayName = currentPerson.company ? currentPerson.company : currentPerson.name;
+          reportList.push({ name: displayName, type: typeArr.join(' / '), detail: detailArr.join(' ｜ ') });
+        }
+      }
+    });
+
+    newData.forEach(currentPerson => {
+      if (!oldData.find(p => p.id === currentPerson.id)) {
+        let text = `${currentPerson.store}（${currentPerson.role}）に配属`;
+        if (currentPerson.isOJT) text += ' ※OJT';
+        if (currentPerson.isKobutsu) text += ' ※古物商';
+        const displayName = currentPerson.company ? currentPerson.company : currentPerson.name;
+        reportList.push({ name: displayName, type: '<span class="tag-new">新規追加</span>', detail: text });
+      }
+    });
+    return reportList;
+  }
+
+  function renderReport(title, reportList) {
+    document.getElementById('report-title').innerText = title;
+    const tbody = document.getElementById('report-tbody');
+    tbody.innerHTML = ''; 
+    if (!reportList || reportList.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">変更はありません</td></tr>`;
+    } else {
+      reportList.forEach(item => { tbody.innerHTML += `<tr><td>${item.name}</td><td>${item.type}</td><td>${item.detail}</td></tr>`; });
+    }
+    document.getElementById('report-area').style.display = 'block';
+    document.getElementById('report-area').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function closeReport() { document.getElementById('report-area').style.display = 'none'; }
+
+  function getCurrentFlatData() {
+    const data = [];
+    document.querySelectorAll('.staff-card').forEach(card => {
+      data.push({
+        id: card.dataset.id, 
+        empId: card.dataset.empId || '',
+        name: card.querySelector('.name-text').textContent.trim(),
+        company: card.dataset.company || '', 
+        role: card.querySelector('.staff-role').value, 
+        store: card.closest('.store-row').querySelector('.store-name').textContent.trim(),
+        isOJT: card.classList.contains('is-ojt'),
+        isKobutsu: card.classList.contains('is-kobutsu')
+      });
+    });
+    return data;
+  }
+
+  async function getBaselineForCurrentMonth() {
+    const data = [];
+    document.querySelectorAll('.staff-card').forEach(card => {
+      if (!card.classList.contains('new-staff')) {
+        data.push({
+          id: card.dataset.id, 
+          empId: card.dataset.empId || '',
+          name: card.querySelector('.name-text').textContent.trim(),
+          company: card.dataset.company || '', 
+          role: card.dataset.originRole, 
+          store: card.dataset.origin,
+          isOJT: card.dataset.originOjt === 'true',
+          isKobutsu: card.dataset.originKobutsu === 'true'
+        });
+      }
+    });
+    const retired = await getCloudData(getStorageKey('staffApp_retired')) || [];
+    retired.forEach(person => data.push(person));
+    return data;
+  }
+
+  async function saveHistoryData() {
+    const monthVal = document.getElementById('save-month').value;
+    if (!monthVal) return alert('保存する月を選択してください。');
+    
+    showLoading();
+    let history = await getCloudData(getStorageKey('staffApp_history')) || {};
+    const isOverwrite = history.hasOwnProperty(monthVal);
+
+    const currentFlatData = getCurrentFlatData();
+    const lastData = await getBaselineForCurrentMonth();
+    const generatedReport = compareData(lastData, currentFlatData);
+
+    history[monthVal] = { data: currentFlatData, report: generatedReport };
+    await setCloudData(getStorageKey('staffApp_history'), history);
+    
+    if (!isOverwrite) {
+      document.querySelectorAll('.staff-card').forEach(card => {
+        card.dataset.origin = card.closest('.store-row').querySelector('.store-name').textContent.trim();
+        card.dataset.originRole = card.querySelector('.staff-role').value;
+        card.dataset.originOjt = card.classList.contains('is-ojt'); 
+        card.dataset.originKobutsu = card.classList.contains('is-kobutsu'); 
+        card.classList.remove('new-staff'); 
+        updateBadges(card); 
+      });
+      await removeCloudData(getStorageKey('staffApp_retired'));
+      
+      await addActionLog(`【${monthVal}】の配置データをクラウドに新規保存しました。`);
+      alert(`【${currentRegion}】の【${monthVal}】配置データと変更履歴をセットでクラウドに保存しました！\n（※バッジは翌月向けにリセットされました）`);
+    } else {
+      await addActionLog(`【${monthVal}】の配置データをクラウドに上書き保存しました。`);
+      alert(`【${currentRegion}】の【${monthVal}】配置データをクラウドに上書き保存しました！`);
+    }
+    
+    document.getElementById('page-title').innerText = `【${monthVal.replace('-','年')}月】店舗間スタッフ配置表（${currentRegion}）`;
+    await saveCurrentMaster(); 
+    await updateHistorySelect();
+    hideLoading();
+  }
+
+  async function deleteHistoryData() {
+    const monthVal = document.getElementById('history-select').value;
+    if (!monthVal) return alert('削除するデータが選択されていません。\n左のプルダウンから削除したい月を選んでください。');
+    if (!confirm(`本当にクラウド上の【${currentRegion}】の【${monthVal}】履歴データを完全に削除しますか？\n（※この操作は取り消せません）`)) return;
+
+    showLoading();
+    let history = await getCloudData(getStorageKey('staffApp_history')) || {};
+    delete history[monthVal];
+    await setCloudData(getStorageKey('staffApp_history'), history);
+    await updateHistorySelect(); closeReport();
+    
+    await addActionLog(`【${monthVal}】の履歴データを削除しました。`);
+    hideLoading();
+    alert(`クラウド上の【${currentRegion}】の【${monthVal}】履歴データを削除しました。`);
+  }
+
+  async function updateHistorySelect() {
+    let history = await getCloudData(getStorageKey('staffApp_history')) || {};
+    const select = document.getElementById('history-select');
+    select.innerHTML = '';
+    const keys = Object.keys(history).sort().reverse();
+    if (keys.length === 0) select.innerHTML = '<option value="">データなし</option>';
+    else keys.forEach(k => { select.innerHTML += `<option value="${k}">${k} 分</option>`; });
+  }
+
+  async function generateCurrentReport() {
+    showLoading();
+    const lastData = await getBaselineForCurrentMonth();
+    const currentData = getCurrentFlatData();
+    const reportList = compareData(lastData, currentData);
+    hideLoading();
+    renderReport(`📋 【${currentRegion}】今の変更レポート（未保存）`, reportList);
+  }
+
+  async function showPastReport() {
+    const monthVal = document.getElementById('history-select').value;
+    if (!monthVal) return alert('確認する過去データがありません。');
+    
+    showLoading();
+    let history = await getCloudData(getStorageKey('staffApp_history')) || {};
+    const monthData = history[monthVal];
+    let reportList = [];
+    if (monthData && monthData.report) reportList = monthData.report;
+    hideLoading();
+    renderReport(`📋 【${currentRegion}】${monthVal} にクラウドに保存された変更履歴`, reportList);
+  }
+
+  async function loadPastData() {
+    const monthVal = document.getElementById('history-select').value;
+    if (!monthVal) return alert('読み込むデータがありません。');
+    if (!confirm(`画面を【${currentRegion}】の【${monthVal}】の配置に戻しますか？\n※現在作業中で保存していない変更は破棄されます。`)) return;
+    
+    showLoading();
+    document.getElementById('save-month').value = monthVal;
+    updatePageTitle();
+    
+    let history = await getCloudData(getStorageKey('staffApp_history')) || {};
+    const pastDataWrapper = history[monthVal];
+    if (!pastDataWrapper) { hideLoading(); return; }
+    
+    await removeCloudData(getStorageKey('staffApp_retired'));
+
+    const keys = Object.keys(history).sort();
+    let prevMonth = null;
+    for (let i = keys.length - 1; i >= 0; i--) {
+      if (keys[i] < monthVal) { prevMonth = keys[i]; break; }
+    }
+    
+    let prevData = [];
+    if (prevMonth) { prevData = history[prevMonth].data || history[prevMonth]; } 
+    else { prevData = getInitialFlatData(); }
+
+    const pastData = pastDataWrapper.data || pastDataWrapper; 
+    document.querySelectorAll('.staff-card').forEach(c => c.remove());
+    
+    pastData.forEach(person => {
+      let targetWrapper = null;
+      document.querySelectorAll('.store-row').forEach(s => { 
+        if(s.querySelector('.store-name').textContent.trim() === person.store) targetWrapper = s.querySelector('.staff-wrapper'); 
+      });
+      if (!targetWrapper) return; 
+      
+      let originStore = person.store; let originRole = person.role; 
+      let originOjt = person.isOJT; let originKobutsu = person.isKobutsu;
+      let newClass = '';
+      
+      const prevPerson = prevData.find(p => p.id === person.id);
+      if (!prevPerson) { newClass = 'new-staff'; } 
+      else { originStore = prevPerson.store; originRole = prevPerson.role; originOjt = prevPerson.isOJT; originKobutsu = prevPerson.isKobutsu; }
+
+      const card = document.createElement('div');
+      const ojtClass = person.isOJT ? 'is-ojt' : '';
+      const kobutsuClass = person.isKobutsu ? 'is-kobutsu' : '';
+      const empIdText = person.empId || '';
+      const companyText = person.company || ''; 
+      
+      card.className = `staff-card ${newClass} ${ojtClass} ${kobutsuClass}`; 
+      card.draggable = true;
+      card.dataset.id = person.id; card.dataset.empId = person.empId || '';
+      card.dataset.company = companyText; 
+      card.dataset.origin = originStore; card.dataset.originRole = originRole; 
+      card.dataset.originOjt = originOjt; card.dataset.originKobutsu = originKobutsu;
+      card.innerHTML = `
+        <span class="emp-id-text">${empIdText}</span>
+        <div class="staff-name-container">
+          <div class="name-row">
+            <span class="name-text">${person.name}</span>
+            <div class="staff-actions">
+              <button class="kobutsu-btn" title="古物商の切り替え">古</button>
+              <button class="ojt-btn" title="OJT担当の切り替え">OJT</button>
+              <button class="delete-btn" title="退職（削除）">×</button>
+            </div>
+          </div>
+          <span class="company-text">${companyText}</span>
+        </div>
+        ${createRoleSelect(person.role)}
+      `;
+      targetWrapper.querySelector('.staff-list').appendChild(card);
+    });
+    
+    document.querySelectorAll('.staff-card').forEach(card => updateBadges(card));
+    document.querySelectorAll('.staff-wrapper').forEach(wrapper => sortStaff(wrapper));
+    updateStaffCounts(); 
+    await saveCurrentMaster(); 
+    
+    await addActionLog(`【${monthVal}】の過去データをクラウドから画面に復元しました。`);
+    
+    hideLoading();
+    showPastReport();
+    alert(`クラウドから【${currentRegion}】の ${monthVal} の配置データを復元しました。`);
+  }
+
+  function sortStaff(wrapper) {
+    const specialList = wrapper.querySelector('.special-staff-list');
+    const normalList = wrapper.querySelector('.staff-list');
+    const cards = Array.from(wrapper.querySelectorAll('.staff-card'));
+    
+    cards.sort((a, b) => roleRank[b.querySelector('.staff-role').value] - roleRank[a.querySelector('.staff-role').value]);
+    
+    let specialCount = 0;
+    cards.forEach(card => {
+      const role = card.querySelector('.staff-role').value;
+      if (role === 'マネージャー' || role === '販売促進G') {
+        specialList.appendChild(card);
+        specialCount++;
+      } else {
+        normalList.appendChild(card);
+      }
+    });
+
+    if (specialCount > 0) {
+      specialList.style.display = 'flex';
+    } else {
+      specialList.style.display = 'none';
+    }
+  }
+  
+  let draggedCard = null;
+  document.addEventListener('dragstart', (e) => { if (e.target.closest('.staff-card')) { draggedCard = e.target.closest('.staff-card'); e.stopPropagation(); } });
+  document.addEventListener('dragover', (e) => {
+    e.preventDefault(); const list = e.target.closest('.drag-area');
+    if (list && draggedCard) list.classList.add('drag-over');
+  });
+  document.addEventListener('dragleave', (e) => {
+    const list = e.target.closest('.drag-area');
+    if (list) list.classList.remove('drag-over');
+  });
+  document.addEventListener('drop', (e) => {
+    e.preventDefault(); const list = e.target.closest('.drag-area');
+    if (list) list.classList.remove('drag-over');
+    if (list && draggedCard) {
+      const wrapper = list.closest('.staff-wrapper');
+      list.appendChild(draggedCard); updateBadges(draggedCard); 
+      sortStaff(wrapper); saveCurrentMaster(); draggedCard = null;
+    }
+  });
+
+  let draggedRow = null;
+  const board = document.getElementById('board');
+  board.addEventListener('dragstart', (e) => { if (e.target.classList.contains('store-row')) draggedRow = e.target; });
+  board.addEventListener('dragover', (e) => {
+    e.preventDefault(); const targetRow = e.target.closest('.store-row');
+    if (targetRow && draggedRow && targetRow !== draggedRow) {
+      const rect = targetRow.getBoundingClientRect();
+      const next = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
+      board.insertBefore(draggedRow, next ? targetRow.nextSibling : targetRow);
+    }
+  });
+  board.addEventListener('dragend', () => { draggedRow = null; saveCurrentMaster(); });
+
+  async function exportToExcel() {
+    try {
+      showLoading();
+      let html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+      <meta charset="utf-8">
+      <style>
+        table { border-collapse: collapse; font-family: 'Yu Gothic', 'Meiryo', sans-serif; }
+        th, td { border: 1px solid #999; padding: 6px 10px; text-align: left; vertical-align: middle; white-space: nowrap; }
+        th { background-color: #edf2f7; color: #2d3748; font-weight: bold; text-align: center; }
+        .c-ojt { color: #48bb78; font-weight: bold; text-align: center; font-size: 16px; }
+        .c-kob { color: #805ad5; font-weight: bold; text-align: center; font-size: 16px; }
+        .b-new { background-color: #38b2ac; color: #fff; padding: 2px 6px; font-size: 12px; border-radius: 4px; }
+        .b-move { background-color: #d69e2e; color: #fff; padding: 2px 6px; font-size: 12px; border-radius: 4px; }
+        .b-up { background-color: #e53e3e; color: #fff; padding: 2px 6px; font-size: 12px; border-radius: 4px; }
+        .b-down { background-color: #3182ce; color: #fff; padding: 2px 6px; font-size: 12px; border-radius: 4px; }
+        .b-leave { background-color: #718096; color: #fff; padding: 2px 6px; font-size: 12px; border-radius: 4px; }
+        .t-center { text-align: center; }
+      </style>
+      </head>
+      <body>
+      <table>
+        <tr>
+          <th style="width: 80px;">社員番号</th>
+          <th style="width: 80px;">地域</th>
+          <th style="width: 120px;">エリア</th>
+          <th style="width: 140px;">店舗名</th>
+          <th style="width: 120px;">氏名</th>
+          <th style="width: 100px;">役職</th>
+          <th style="width: 60px;">OJT</th>
+          <th style="width: 60px;">古物商</th>
+          <th style="width: 120px;">変更状態</th>
+          <th style="width: 250px;">変更詳細</th>
+        </tr>
+      `;
+
+      document.querySelectorAll('.store-row').forEach(row => {
+        if (row.dataset.region !== currentRegion) return; 
+
+        const areaEl = row.querySelector('.area-text');
+        const storeEl = row.querySelector('.store-name');
+        const area = areaEl ? areaEl.textContent.trim() : '';
+        const store = storeEl ? storeEl.textContent.trim() : '';
+        
+        row.querySelectorAll('.staff-card').forEach(card => {
+          const empId = card.dataset.empId || '';
+          const name = card.querySelector('.name-text').textContent.trim();
+          const company = card.dataset.company || ''; 
+          const role = card.querySelector('.staff-role').value;
+          
+          const displayNameExcel = company ? company : name;
+          
+          const isOJT = card.classList.contains('is-ojt') ? '<span class="c-ojt">●</span>' : '';
+          const isKobutsu = card.classList.contains('is-kobutsu') ? '<span class="c-kob">●</span>' : '';
+          
+          let statusHtml = [];
+          if(card.classList.contains('new-staff')) statusHtml.push('<span class="b-new">新入社員</span>');
+          if(card.querySelector('.badge-move')) statusHtml.push('<span class="b-move">移動</span>');
+          if(card.querySelector('.badge-up')) statusHtml.push('<span class="b-up">昇格</span>');
+          if(card.querySelector('.badge-down')) statusHtml.push('<span class="b-down">降格</span>');
+          const statusStr = statusHtml.join(' ');
+          
+          const originStore = card.dataset.origin || '';
+          const originRole = card.dataset.originRole || '';
+          let detail = [];
+          
+          if (originStore && originStore !== store && !card.classList.contains('new-staff')) {
+            detail.push(`【店舗】${originStore} ➔ ${store}`);
+          }
+          if (originRole && originRole !== role && !card.classList.contains('new-staff')) {
+            detail.push(`【役職】${originRole} ➔ ${role}`);
+          }
+          const detailStr = detail.join(' ｜ ');
+
+          html += `<tr>
+            <td style="mso-number-format:'\\@';">${empId}</td>
+            <td>${currentRegion}</td>
+            <td>${area}</td>
+            <td>${store}</td>
+            <td>${displayNameExcel}</td>
+            <td>${role}</td>
+            <td class="t-center">${isOJT}</td>
+            <td class="t-center">${isKobutsu}</td>
+            <td>${statusStr}</td>
+            <td>${detailStr}</td>
+          </tr>`;
+        });
+      });
+
+      const retired = await getCloudData(getStorageKey('staffApp_retired')) || [];
+      retired.forEach(person => {
+        const displayNameExcel = person.company ? person.company : person.name;
+        html += `<tr>
+            <td style="mso-number-format:'\\@';">${person.empId || ''}</td>
+            <td>${currentRegion}</td>
+            <td style="color:#718096;">-</td>
+            <td style="color:#718096;">【退職】</td>
+            <td style="color:#718096;">${person.store || ''}</td>
+            <td style="color:#718096;">${displayNameExcel}</td>
+            <td style="color:#718096;">${person.role || ''}</td>
+            <td class="t-center"></td>
+            <td class="t-center"></td>
+            <td><span class="b-leave">退職</span></td>
+            <td></td>
+          </tr>`;
+      });
+
+      html += `</table></body></html>`;
+
+      const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const monthInput = document.getElementById('save-month');
+      const monthVal = monthInput && monthInput.value ? monthInput.value : '最新';
+      
+      link.href = url;
+      link.download = `スタッフ配置表_${currentRegion}_${monthVal}.xls`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      await addActionLog(`【${currentRegion}】のデータをExcel出力しました。`);
+      hideLoading();
+
+    } catch (error) {
+      hideLoading();
+      alert("ファイル出力中にエラーが発生しました。\n" + error.message);
+      console.error(error);
+    }
+  }
+
+  function openRoumuModal() {
+    document.getElementById('roumu-modal').style.display = 'flex';
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+    document.getElementById('roumu-jirei').value = todayStr;
+    document.getElementById('roumu-idou').value = todayStr;
+  }
+
+  function closeRoumuModal() {
+    document.getElementById('roumu-modal').style.display = 'none';
+  }
+
+  async function printRoumuDoc() {
+    const jireiDate = document.getElementById('roumu-jirei').value;
+    const idouDate = document.getElementById('roumu-idou').value;
+    
+    showLoading();
+    const lastData = await getBaselineForCurrentMonth();
+    const currentData = getCurrentFlatData();
+    const targetStaff = [];
+    
+    currentData.forEach(currentPerson => {
+      const pastPerson = lastData.find(p => p.id === currentPerson.id);
+      if (!pastPerson) {
+        const displayNameRoumu = currentPerson.company ? currentPerson.company : currentPerson.name;
+        targetStaff.push({
+          empId: currentPerson.empId, name: displayNameRoumu,
+          prevRole: '（新規採用）', currentRole: currentPerson.role,
+          prevStore: '（新規採用）', currentStore: currentPerson.store
+        });
+      } else {
+        const roleChanged = pastPerson.role !== currentPerson.role;
+        const storeChanged = pastPerson.store !== currentPerson.store;
+        if (roleChanged || storeChanged) {
+          const displayNameRoumu = currentPerson.company ? currentPerson.company : currentPerson.name;
+          targetStaff.push({
+            empId: currentPerson.empId, name: displayNameRoumu,
+            prevRole: pastPerson.role, currentRole: currentPerson.role,
+            prevStore: pastPerson.store, currentStore: currentPerson.store
+          });
+        }
+      }
+    });
+    
+    const retired = await getCloudData(getStorageKey('staffApp_retired')) || [];
+    retired.forEach(person => {
+      const displayNameRoumu = person.company ? person.company : person.name;
+      targetStaff.push({
+        empId: person.empId, name: displayNameRoumu,
+        prevRole: person.role, currentRole: '（退職）',
+        prevStore: person.store, currentStore: '（退職）'
+      });
+    });
+    
+    if (targetStaff.length === 0) {
+      hideLoading();
+      alert(`【${currentRegion}】の変更対象となるスタッフがいません。\n（異動、役職変更、新規追加、退職のいずれかの操作を行ってから出力してください）`);
+      return;
+    }
+    
+    let html = `
+      <!DOCTYPE html>
+      <html lang="ja">
+      <head>
+      <meta charset="UTF-8">
+      <title>異動依頼書（${currentRegion}）</title>
+      <style>
+        @page { size: A4 portrait; margin: 20mm 15mm; }
+        body { font-family: "Yu Gothic", "Meiryo", sans-serif; color: #000; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .page { page-break-after: always; display: flex; flex-direction: column; min-height: 250mm; }
+        .page:last-child { page-break-after: auto; }
+        
+        h1 { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 30px; font-size: 24px; letter-spacing: 2px; }
+        
+        .date-area { text-align: right; margin-bottom: 30px; font-size: 14px; }
+        .date-area div { margin-bottom: 5px; }
+        
+        .profile-area { margin-bottom: 40px; font-size: 16px; display: flex; flex-direction: column; gap: 10px; }
+        .profile-row { display: flex; align-items: baseline; }
+        .profile-label { width: 100px; font-weight: bold; }
+        .profile-value { font-size: 20px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; width: 300px; }
+        
+        .detail-area { margin-bottom: 40px; }
+        .detail-box { border: 1px solid #000; padding: 15px; margin-bottom: 20px; }
+        .detail-title { font-weight: bold; background: #eee; padding: 5px 10px; border-bottom: 1px solid #000; margin: -15px -15px 15px -15px; }
+        .detail-content { display: flex; align-items: center; justify-content: center; font-size: 18px; padding: 10px 0; }
+        .detail-before, .detail-after { width: 40%; text-align: center; font-weight: bold; }
+        .detail-arrow { width: 20%; text-align: center; font-size: 24px; }
+        
+        .content-wrapper { flex-grow: 1; }
+        
+        .stamp-area { margin-top: auto; padding-bottom: 10mm; }
+        .stamp-title { font-size: 14px; font-weight: bold; margin-bottom: 5px; }
+        table.stamp-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 12px; }
+        table.stamp-table th, table.stamp-table td { border: 1px solid #000; padding: 5px; }
+        table.stamp-table th { background-color: #f5f5f5; font-weight: normal; }
+        table.stamp-table td { height: 60px; vertical-align: middle; }
+      </style>
+      </head>
+      <body>
+    `;
+    
+    targetStaff.forEach(staff => {
+      const roleBefore = staff.prevRole;
+      const roleAfter = staff.currentRole;
+      const roleText = (roleBefore === roleAfter) ? '<div style="text-align:center; width:100%; font-weight:bold;">変更なし</div>' 
+        : `<div class="detail-before">${roleBefore}</div><div class="detail-arrow">➔</div><div class="detail-after">${roleAfter}</div>`;
+        
+      const storeBefore = staff.prevStore;
+      const storeAfter = staff.currentStore;
+      const storeText = (storeBefore === storeAfter) ? '<div style="text-align:center; width:100%; font-weight:bold;">変更なし</div>' 
+        : `<div class="detail-before">${storeBefore}</div><div class="detail-arrow">➔</div><div class="detail-after">${storeAfter}</div>`;
+        
+      html += `
+        <div class="page">
+          <div class="content-wrapper">
+            <h1>異動依頼書（${currentRegion}）</h1>
+            
+            <div class="date-area">
+              <div>辞令日： ${formatDateString(jireiDate)}</div>
+              <div>異動日： ${formatDateString(idouDate)}</div>
+            </div>
+            
+            <div class="profile-area">
+              <div class="profile-row">
+                <div class="profile-label">社員番号</div>
+                <div class="profile-value">${staff.empId || '（未入力）'}</div>
+              </div>
+              <div class="profile-row">
+                <div class="profile-label">氏名</div>
+                <div class="profile-value">${staff.name}</div>
+              </div>
+            </div>
+            
+            <div class="detail-area">
+              <div class="detail-box">
+                <div class="detail-title">役職事案</div>
+                <div class="detail-content">
+                  ${roleText}
+                </div>
+              </div>
+              
+              <div class="detail-box">
+                <div class="detail-title">配置事案</div>
+                <div class="detail-content">
+                  ${storeText}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="stamp-area">
+            <div class="stamp-title">【労務グループ 処理欄】</div>
+            <table class="stamp-table">
+              <tr>
+                <th style="width:12%;">異動一覧表</th>
+                <th style="width:12%;">給与改定①<br>(有無)</th>
+                <th style="width:12%;">給与改定②<br>(有無)</th>
+                <th style="width:12%;">給与明細</th>
+                <th style="width:12%;">SmartHR</th>
+                <th style="width:12%;">ジョブカン</th>
+                <th style="width:14%;">社員台帳</th>
+                <th style="width:14%;">給与奉行</th>
+              </tr>
+              <tr>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      `;
+    });
+    
+    html += `
+      <script>
+        window.onload = function() {
+          setTimeout(function() { window.print(); }, 500);
+        };
+      <\/script>
+      </body>
+      </html>
+    `;
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    
+    await addActionLog(`【${currentRegion}】の労務用依頼書(PDF)を出力しました。`);
+    hideLoading();
+    closeRoumuModal();
+  }
+
+  function formatDateString(dateStr) {
+    if (!dateStr) return '   年  月  日';
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+  }
+
+  // ★ アプリ起動時の処理
+  window.onload = function() {
+    currentRegion = '関東'; 
+    initApp();
+  };
+</script>
+</body>
+</html>

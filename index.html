@@ -119,10 +119,11 @@
   }
   .staff-list.drag-over { border-color: #3182ce; background: #ebf8ff; border-style: dashed; }
   
+  /* ★ ここが改善ポイント！カード幅を広げました */
   .staff-card { 
     background: #fff; border: 1px solid #e2e8f0; border-radius: 3px; 
     padding: 4px; cursor: grab; display: flex; flex-direction: column; 
-    gap: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); width: 95px; position: relative;
+    gap: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); width: 135px; position: relative;
     transition: all 0.2s; box-sizing: border-box;
   }
   .staff-card:active { cursor: grabbing; }
@@ -131,7 +132,12 @@
   
   .staff-name-container { display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; gap: 1px; margin-bottom: 2px;}
   .name-row { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; gap: 1px; }
-  .name-text { font-weight: bold; font-size: 0.85em; line-height: 1.1; margin-top: 0; flex-grow: 1; word-break: break-all; }
+  
+  /* ★ ここが改善ポイント！名前の改行を禁止し、はみ出る場合は「...」にする */
+  .name-text { 
+    font-weight: bold; font-size: 0.9em; line-height: 1.1; margin-top: 0; 
+    flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+  }
   
   .company-text:not(:empty) { 
     display: block; font-size: 0.65em; color: #718096; line-height: 1.1; 
@@ -176,7 +182,7 @@
     .board { display: block !important; border-top: 1px solid #333; border-bottom: 1px solid #333; padding: 2px 0; }
     .store-row { box-shadow: none !important; border-radius: 0; padding: 3px 0; margin: 0; border-bottom: 1px dotted #ccc; display: flex; align-items: center; background: #fff !important; break-inside: avoid; page-break-inside: avoid; }
     .area-name { background: #edf2f7 !important; color: #4a5568; font-size: 0.8em; width: 50px; border: none; border-radius: 2px; padding: 2px; margin-right: 4px; }
-    .store-info { border-right: 1px solid #ccc; width: 130px; padding: 1px 4px 1px 0; margin-right: 4px; }
+    .store-info { border-right: 1px solid #ccc; width: 120px; padding: 1px 4px 1px 0; margin-right: 4px; }
     .store-name { font-size: 1em; font-weight: bold; margin-bottom: 2px; }
     
     .staff-counts { flex-direction: column; gap: 2px; width: 100%; }
@@ -187,7 +193,8 @@
     .special-staff-list::before { background: #fff !important; color: #000 !important; border: 1px solid #000; top: -5px; left: 3px; font-size: 0.55em; padding: 0 3px; }
     .staff-list { background: transparent !important; border: none !important; padding: 0; gap: 2px; }
     
-    .staff-card { box-shadow: none !important; border: 1px solid #999 !important; background: #fff !important; border-radius: 2px; padding: 2px; width: 75px; gap: 1px; }
+    /* ★ 印刷時のカード幅も広げました */
+    .staff-card { box-shadow: none !important; border: 1px solid #999 !important; background: #fff !important; border-radius: 2px; padding: 2px; width: 110px; gap: 1px; }
     .staff-card.is-kobutsu { border-left: 2px solid #805ad5 !important; } 
     .staff-card.is-ojt { border-left: 2px solid #48bb78 !important; } 
     .staff-card.status-moved { background: #fffff0 !important; border-color: #ecc94b !important; }
@@ -196,7 +203,9 @@
     .staff-card.status-new { background: #e6fffa !important; border-color: #38b2ac !important; }
     
     .emp-id-text { font-size: 0.6em; color: #333; display: block; margin-bottom: 0; }
-    .name-text { font-size: 0.9em; margin: 0; }
+    
+    /* ★ 印刷時の改行も禁止 */
+    .name-text { font-size: 0.9em; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     
     .staff-card[data-company]:not([data-company=""]) .name-text { display: none !important; }
     .staff-card[data-company]:not([data-company=""]) .company-text:not(:empty) { 
@@ -380,7 +389,7 @@
   const supabaseUrl = 'https://dusilaoursfezfgnvwan.supabase.co';
   const supabaseKey = 'sb_publishable_vjvmVoU59_QbG-dDkoxBqA_ILEOW0iQ';
 
-  const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+  const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
   // --- クラウド通信用の秘密の関数 ---
   async function getCloudData(key) {
@@ -406,31 +415,31 @@
   
   const initialStoreData = {
     '関東': [
-      { area: '東京エリア', name: '新宿本店', staff: [ { id: 's1', empId: '1001', name: '渡辺', role: '販売促進G' }, { id: 's2', empId: '1002', name: '林', role: '店長(S)', isKobutsu: false }, { id: 's3', empId: '1003', name: '高橋', role: '副店長', isOJT: true }, { id: 's4', empId: '1004', name: '近藤', role: '一般' }, { id: 's5', empId: '1005', name: '田中', role: '一般', isOJT: true }, { id: 's6', empId: '1006', name: '森', role: '一般', isKobutsu: true }, { id: 's8', empId: '1008', name: '伊藤', role: '時短' }, { id: 's10', empId: '1010', name: '石井', role: 'パート' }, { id: 's_out1', empId: '-', name: '山田', company: '(株)アルファサポート', role: '業務委託' } ] },
-      { area: '東京エリア', name: '渋谷店', staff: [ { id: 's12', empId: '1012', name: '渡辺', role: '店長(A)', isKobutsu: true }, { id: 's13', empId: '1013', name: '鈴木', role: '副店長', isOJT: true }, { id: 's14', empId: '1014', name: '中島', role: '一般', isKobutsu: true }, { id: 's16', empId: '1016', name: '前田', role: '一般', isOJT: true }, { id: 's18', empId: '1018', name: '石川', role: '時短' }, { id: 's19', empId: '1019', name: '近藤', role: 'パート' }, { id: 's_out2', empId: '-', name: '佐藤', company: 'ベータサービス(株)', role: '業務委託' } ] },
-      { area: '東京エリア', name: '池袋店', staff: [ { id: 's21', empId: '1021', name: '岡田', role: '店長(C)', isKobutsu: true }, { id: 's22', empId: '1022', name: '高橋', role: '副店長', isOJT: true }, { id: 's23', empId: '1023', name: '渡辺', role: '一般' }, { id: 's26', empId: '1026', name: '鈴木', role: '時短' }, { id: 's28', empId: '1028', name: '橋本', role: 'パート' }, { id: 's_out3', empId: '-', name: '高橋', company: 'ガンマスタッフィング(有)', role: '業務委託' } ] },
-      { area: '東京エリア', name: '銀座店', staff: [ { id: 's29', empId: '1029', name: '池田', role: 'マネージャー' }, { id: 's30', empId: '1030', name: '石川', role: '店長(S)', isKobutsu: false }, { id: 's31', empId: '1031', name: '岡田', role: '副店長', isOJT: true }, { id: 's32', empId: '1032', name: '近藤', role: '一般', isKobutsu: true }, { id: 's35', empId: '1035', name: '木村', role: '時短' }, { id: 's36', empId: '1036', name: '林', role: 'パート' } ] },
-      { area: '東京エリア', name: '上野店', staff: [ { id: 's38', empId: '1038', name: '佐藤', role: '店長(S)', isKobutsu: false }, { id: 's39', empId: '1039', name: '長谷川', role: '副店長', isOJT: true }, { id: 's40', empId: '1040', name: '渡辺', role: '一般', isOJT: true }, { id: 's44', empId: '1044', name: '池田', role: '時短' }, { id: 's46', empId: '1046', name: '山下', role: 'パート' } ] },
-      { area: '東京エリア', name: '秋葉原店', staff: [ { id: 's47', empId: '1047', name: '加藤', role: '販売促進G' }, { id: 's48', empId: '1048', name: '井上', role: '店長(S)', isKobutsu: false }, { id: 's49', empId: '1049', name: '田中', role: '副店長', isOJT: true }, { id: 's50', empId: '1050', name: '近藤', role: '一般' }, { id: 's54', empId: '1054', name: '中島', role: '時短' }, { id: 's56', empId: '1056', name: '小川', role: 'パート' } ] },
-      { area: '東京エリア', name: '品川店', staff: [ { id: 's57', empId: '1057', name: '池田', role: '店長(C)', isKobutsu: false }, { id: 's58', empId: '1058', name: '石井', role: '副店長', isOJT: true }, { id: 's59', empId: '1059', name: '中島', role: '一般', isKobutsu: true }, { id: 's63', empId: '1063', name: '渡辺', role: '時短' }, { id: 's65', empId: '1065', name: '山口', role: 'パート' } ] },
-      { area: '東京エリア', name: '立川店', staff: [ { id: 's66', empId: '1066', name: '木村', role: '店長(C)', isKobutsu: true }, { id: 's67', empId: '1067', name: '長谷川', role: '副店長', isOJT: true }, { id: 's68', empId: '1068', name: '佐々木', role: '一般' }, { id: 's71', empId: '1071', name: '近藤', role: '時短' }, { id: 's72', empId: '1072', name: '前田', role: 'パート' } ] },
-      { area: '東京エリア', name: '町田店', staff: [ { id: 's73', empId: '1073', name: '石川', role: '店長(S)', isKobutsu: true }, { id: 's74', empId: '1074', name: '青木', role: '副店長', isOJT: true }, { id: 's75', empId: '1075', name: '森', role: '一般', isKobutsu: true }, { id: 's79', empId: '1079', name: '田中', role: '時短' }, { id: 's80', empId: '1080', name: '小川', role: 'パート' } ] },
-      { area: '東京エリア', name: '八王子店', staff: [ { id: 's82', empId: '1082', name: '山下', role: '店長(B)', isKobutsu: true }, { id: 's83', empId: '1083', name: '石井', role: '副店長', isOJT: true }, { id: 's84', empId: '1084', name: '佐々木', role: '一般', isKobutsu: true }, { id: 's88', empId: '1088', name: '中村', role: '時短' }, { id: 's90', empId: '1090', name: '田中', role: 'パート' } ] },
-      { area: '神奈川エリア', name: '横浜店', staff: [ { id: 's92', empId: '1092', name: '阿部', role: '販売促進G' }, { id: 's93', empId: '1093', name: '山本', role: '店長(C)', isKobutsu: false }, { id: 's94', empId: '1094', name: '山崎', role: '副店長', isOJT: true }, { id: 's98', empId: '1098', name: '森', role: '時短' }, { id: 's_out4', empId: '-', name: '伊藤', company: 'ベータサービス(株)', role: '業務委託' } ] },
-      { area: '神奈川エリア', name: '川崎店', staff: [ { id: 's101', empId: '1101', name: '岡田', role: 'マネージャー' }, { id: 's102', empId: '1102', name: '前田', role: '店長(S)', isKobutsu: true }, { id: 's103', empId: '1103', name: '近藤', role: '副店長', isOJT: true }, { id: 's107', empId: '1107', name: '坂本', role: '時短' }, { id: 's109', empId: '1109', name: '阿部', role: 'パート' } ] },
-      { area: '神奈川エリア', name: '溝の口店', staff: [ { id: 's111', empId: '1111', name: '伊藤', role: '店長(B)', isKobutsu: true }, { id: 's112', empId: '1112', name: '山下', role: '副店長', isOJT: true }, { id: 's113', empId: '1113', name: '中島', role: '一般', isOJT: true, isKobutsu: true }, { id: 's117', empId: '1117', name: '松本', role: '時短' }, { id: 's119', empId: '1119', name: '山本', role: 'パート' } ] },
-      { area: '埼玉エリア', name: '大宮店', staff: [ { id: 's120', empId: '1120', name: '近藤', role: '店長(B)', isKobutsu: false }, { id: 's121', empId: '1121', name: '藤田', role: '副店長', isOJT: true }, { id: 's125', empId: '1125', name: '佐々木', role: '時短' } ] },
-      { area: '埼玉エリア', name: '浦和店', staff: [ { id: 's127', empId: '1127', name: '井上', role: '店長(A)', isKobutsu: true }, { id: 's128', empId: '1128', name: '鈴木', role: '副店長', isOJT: true }, { id: 's129', empId: '1129', name: '山下', role: '一般' } ] },
-      { area: '千葉エリア', name: '千葉店', staff: [ { id: 's136', empId: '1136', name: '橋本', role: 'マネージャー' }, { id: 's137', empId: '1137', name: '小川', role: '店長(A)', isKobutsu: true }, { id: 's138', empId: '1138', name: '長谷川', role: '副店長', isOJT: true } ] },
-      { area: '千葉エリア', name: '船橋店', staff: [ { id: 's146', empId: '1146', name: '斎藤', role: '店長(B)', isKobutsu: true }, { id: 's147', empId: '1147', name: '田中', role: '副店長', isOJT: true }, { id: 's148', empId: '1148', name: '長谷川', role: '一般' } ] },
-      { area: '本社直轄', name: '本部', staff: [ { id: 's153', empId: '1153', name: '吉田', role: 'マネージャー' }, { id: 's154', empId: '1154', name: '渡辺', role: '販売促進G' }, { id: 's155', empId: '1155', name: '森', role: '販売促進G' } ] }
+      { area: '東京エリア', name: '新宿本店', staff: [ { id: 's1', empId: '1001', name: '渡辺 健太', role: '販売促進G' }, { id: 's2', empId: '1002', name: '林 さくら', role: '店長(S)', isKobutsu: false }, { id: 's3', empId: '1003', name: '高橋 大輔', role: '副店長', isOJT: true }, { id: 's4', empId: '1004', name: '近藤 麻衣', role: '一般' }, { id: 's5', empId: '1005', name: '田中 翔太', role: '一般', isOJT: true }, { id: 's6', empId: '1006', name: '森 結衣', role: '一般', isKobutsu: true }, { id: 's8', empId: '1008', name: '伊藤 誠', role: '時短' }, { id: 's10', empId: '1010', name: '石井 莉子', role: 'パート' }, { id: 's_out1', empId: '-', name: '山田 太郎', company: '(株)アルファサポート', role: '業務委託' } ] },
+      { area: '東京エリア', name: '渋谷店', staff: [ { id: 's12', empId: '1012', name: '渡辺 勇気', role: '店長(A)', isKobutsu: true }, { id: 's13', empId: '1013', name: '鈴木 美咲', role: '副店長', isOJT: true }, { id: 's14', empId: '1014', name: '中島 健人', role: '一般', isKobutsu: true }, { id: 's16', empId: '1016', name: '前田 敦子', role: '一般', isOJT: true }, { id: 's18', empId: '1018', name: '石川 遼', role: '時短' }, { id: 's19', empId: '1019', name: '近藤 春菜', role: 'パート' }, { id: 's_out2', empId: '-', name: '佐藤 健', company: 'ベータサービス(株)', role: '業務委託' } ] },
+      { area: '東京エリア', name: '池袋店', staff: [ { id: 's21', empId: '1021', name: '岡田 拓海', role: '店長(C)', isKobutsu: true }, { id: 's22', empId: '1022', name: '高橋 みなみ', role: '副店長', isOJT: true }, { id: 's23', empId: '1023', name: '渡辺 翔', role: '一般' }, { id: 's26', empId: '1026', name: '鈴木 奈々', role: '時短' }, { id: 's28', empId: '1028', name: '橋本 環奈', role: 'パート' }, { id: 's_out3', empId: '-', name: '高橋 一生', company: 'ガンマスタッフィング(有)', role: '業務委託' } ] },
+      { area: '東京エリア', name: '銀座店', staff: [ { id: 's29', empId: '1029', name: '池田 陸', role: 'マネージャー' }, { id: 's30', empId: '1030', name: '石川 陽菜', role: '店長(S)', isKobutsu: false }, { id: 's31', empId: '1031', name: '岡田 将生', role: '副店長', isOJT: true }, { id: 's32', empId: '1032', name: '近藤 健介', role: '一般', isKobutsu: true }, { id: 's35', empId: '1035', name: '木村 拓哉', role: '時短' }, { id: 's36', empId: '1036', name: '林 遣都', role: 'パート' } ] },
+      { area: '東京エリア', name: '上野店', staff: [ { id: 's38', empId: '1038', name: '佐藤 蓮', role: '店長(S)', isKobutsu: false }, { id: 's39', empId: '1039', name: '長谷川 潤', role: '副店長', isOJT: true }, { id: 's40', empId: '1040', name: '渡辺 直美', role: '一般', isOJT: true }, { id: 's44', empId: '1044', name: '池田 美優', role: '時短' }, { id: 's46', empId: '1046', name: '山下 智久', role: 'パート' } ] },
+      { area: '東京エリア', name: '秋葉原店', staff: [ { id: 's47', empId: '1047', name: '加藤 綾子', role: '販売促進G' }, { id: 's48', empId: '1048', name: '井上 真央', role: '店長(S)', isKobutsu: false }, { id: 's49', empId: '1049', name: '田中 圭', role: '副店長', isOJT: true }, { id: 's50', empId: '1050', name: '近藤 真彦', role: '一般' }, { id: 's54', empId: '1054', name: '中島 美嘉', role: '時短' }, { id: 's56', empId: '1056', name: '小川 彩佳', role: 'パート' } ] },
+      { area: '東京エリア', name: '品川店', staff: [ { id: 's57', empId: '1057', name: '池田 エライザ', role: '店長(C)', isKobutsu: false }, { id: 's58', empId: '1058', name: '石井 杏奈', role: '副店長', isOJT: true }, { id: 's59', empId: '1059', name: '中島 裕翔', role: '一般', isKobutsu: true }, { id: 's63', empId: '1063', name: '渡辺 謙', role: '時短' }, { id: 's65', empId: '1065', name: '山口 百恵', role: 'パート' } ] },
+      { area: '東京エリア', name: '立川店', staff: [ { id: 's66', empId: '1066', name: '木村 カエラ', role: '店長(C)', isKobutsu: true }, { id: 's67', empId: '1067', name: '長谷川 博己', role: '副店長', isOJT: true }, { id: 's68', empId: '1068', name: '佐々木 希', role: '一般' }, { id: 's71', empId: '1071', name: '近藤 千尋', role: '時短' }, { id: 's72', empId: '1072', name: '前田 健太', role: 'パート' } ] },
+      { area: '東京エリア', name: '町田店', staff: [ { id: 's73', empId: '1073', name: '石川 さゆり', role: '店長(S)', isKobutsu: true }, { id: 's74', empId: '1074', name: '青木 裕子', role: '副店長', isOJT: true }, { id: 's75', empId: '1075', name: '森 星', role: '一般', isKobutsu: true }, { id: 's79', empId: '1079', name: '田中 みな実', role: '時短' }, { id: 's80', empId: '1080', name: '小川 菜摘', role: 'パート' } ] },
+      { area: '東京エリア', name: '八王子店', staff: [ { id: 's82', empId: '1082', name: '山下 健二郎', role: '店長(B)', isKobutsu: true }, { id: 's83', empId: '1083', name: '石井 竜也', role: '副店長', isOJT: true }, { id: 's84', empId: '1084', name: '佐々木 蔵之介', role: '一般', isKobutsu: true }, { id: 's88', empId: '1088', name: '中村 アン', role: '時短' }, { id: 's90', empId: '1090', name: '田中 将大', role: 'パート' } ] },
+      { area: '神奈川エリア', name: '横浜店', staff: [ { id: 's92', empId: '1092', name: '阿部 寛', role: '販売促進G' }, { id: 's93', empId: '1093', name: '山本 舞香', role: '店長(C)', isKobutsu: false }, { id: 's94', empId: '1094', name: '山崎 賢人', role: '副店長', isOJT: true }, { id: 's98', empId: '1098', name: '森 七菜', role: '時短' }, { id: 's_out4', empId: '-', name: '伊藤 健太郎', company: 'ベータサービス(株)', role: '業務委託' } ] },
+      { area: '神奈川エリア', name: '川崎店', staff: [ { id: 's101', empId: '1101', name: '岡田 准一', role: 'マネージャー' }, { id: 's102', empId: '1102', name: '前田 ゴードン', role: '店長(S)', isKobutsu: true }, { id: 's103', empId: '1103', name: '近藤 芳正', role: '副店長', isOJT: true }, { id: 's107', empId: '1107', name: '坂本 龍馬', role: '時短' }, { id: 's109', empId: '1109', name: '阿部 サダヲ', role: 'パート' } ] },
+      { area: '神奈川エリア', name: '溝の口店', staff: [ { id: 's111', empId: '1111', name: '伊藤 蘭', role: '店長(B)', isKobutsu: true }, { id: 's112', empId: '1112', name: '山下 美月', role: '副店長', isOJT: true }, { id: 's113', empId: '1113', name: '中島 健', role: '一般', isOJT: true, isKobutsu: true }, { id: 's117', empId: '1117', name: '松本 潤', role: '時短' }, { id: 's119', empId: '1119', name: '山本 彩', role: 'パート' } ] },
+      { area: '埼玉エリア', name: '大宮店', staff: [ { id: 's120', empId: '1120', name: '近藤 玲奈', role: '店長(B)', isKobutsu: false }, { id: 's121', empId: '1121', name: '藤田 ニコル', role: '副店長', isOJT: true }, { id: 's125', empId: '1125', name: '佐々木 琴子', role: '時短' } ] },
+      { area: '埼玉エリア', name: '浦和店', staff: [ { id: 's127', empId: '1127', name: '井上 尚弥', role: '店長(A)', isKobutsu: true }, { id: 's128', empId: '1128', name: '鈴木 亮平', role: '副店長', isOJT: true }, { id: 's129', empId: '1129', name: '山下 達郎', role: '一般' } ] },
+      { area: '千葉エリア', name: '千葉店', staff: [ { id: 's136', empId: '1136', name: '橋本 愛', role: 'マネージャー' }, { id: 's137', empId: '1137', name: '小川 悦子', role: '店長(A)', isKobutsu: true }, { id: 's138', empId: '1138', name: '長谷川 京子', role: '副店長', isOJT: true } ] },
+      { area: '千葉エリア', name: '船橋店', staff: [ { id: 's146', empId: '1146', name: '斎藤 工', role: '店長(B)', isKobutsu: true }, { id: 's147', empId: '1147', name: '田中 麗奈', role: '副店長', isOJT: true }, { id: 's148', empId: '1148', name: '長谷川 穂積', role: '一般' } ] },
+      { area: '本社直轄', name: '本部', staff: [ { id: 's153', empId: '1153', name: '吉田 沙保里', role: 'マネージャー' }, { id: 's154', empId: '1154', name: '渡辺 翔太', role: '販売促進G' }, { id: 's155', empId: '1155', name: '森 泉', role: '販売促進G' } ] }
     ],
     '東海': [
-      { area: '愛知エリア', name: '名古屋本店', staff: [ { id: 't1', empId: '2001', name: '山田', role: '店長(S)', isKobutsu: true }, { id: 't2', empId: '2002', name: '佐藤', role: '副店長', isOJT: true }, { id: 't5', empId: '2005', name: '伊藤', role: '時短' }, { id: 't_out1', empId: '-', name: '中村', company: '(株)アルファサポート', role: '業務委託' } ] },
-      { area: '愛知エリア', name: '栄店', staff: [ { id: 't7', empId: '2007', name: '中村', role: '店長(A)' }, { id: 't8', empId: '2008', name: '小林', role: '副店長' }, { id: 't9', empId: '2009', name: '加藤', role: '一般', isOJT: true } ] },
-      { area: '愛知エリア', name: '豊田店', staff: [ { id: 't12', empId: '2012', name: '佐々木', role: '店長(B)' }, { id: 't13', empId: '2013', name: '山口', role: '副店長', isOJT: true }, { id: 't14', empId: '2014', name: '松本', role: '一般' } ] },
-      { area: '静岡エリア', name: '静岡店', staff: [ { id: 't17', empId: '2017', name: '林', role: '店長(A)', isKobutsu: true }, { id: 't18', empId: '2018', name: '斎藤', role: '副店長' }, { id: 't19', empId: '2019', name: '清水', role: '一般' } ] },
-      { area: '三重エリア', name: '四日市店', staff: [ { id: 't21', empId: '2021', name: '森', role: 'マネージャー' }, { id: 't22', empId: '2022', name: '池田', role: '店長(C)' }, { id: 't23', empId: '2023', name: '橋本', role: '副店長', isOJT: true } ] }
+      { area: '愛知エリア', name: '名古屋本店', staff: [ { id: 't1', empId: '2001', name: '山田 孝之', role: '店長(S)', isKobutsu: true }, { id: 't2', empId: '2002', name: '佐藤 栞里', role: '副店長', isOJT: true }, { id: 't5', empId: '2005', name: '伊藤 英明', role: '時短' }, { id: 't_out1', empId: '-', name: '中村 倫也', company: '(株)アルファサポート', role: '業務委託' } ] },
+      { area: '愛知エリア', name: '栄店', staff: [ { id: 't7', empId: '2007', name: '中村 獅童', role: '店長(A)' }, { id: 't8', empId: '2008', name: '小林 麻央', role: '副店長' }, { id: 't9', empId: '2009', name: '加藤 浩次', role: '一般', isOJT: true } ] },
+      { area: '愛知エリア', name: '豊田店', staff: [ { id: 't12', empId: '2012', name: '佐々木 健介', role: '店長(B)' }, { id: 't13', empId: '2013', name: '山口 智充', role: '副店長', isOJT: true }, { id: 't14', empId: '2014', name: '松本 人志', role: '一般' } ] },
+      { area: '静岡エリア', name: '静岡店', staff: [ { id: 't17', empId: '2017', name: '林 修', role: '店長(A)', isKobutsu: true }, { id: 't18', empId: '2018', name: '斎藤 飛鳥', role: '副店長' }, { id: 't19', empId: '2019', name: '清水 翔太', role: '一般' } ] },
+      { area: '三重エリア', name: '四日市店', staff: [ { id: 't21', empId: '2021', name: '森 山直太朗', role: 'マネージャー' }, { id: 't22', empId: '2022', name: '池田 輝政', role: '店長(C)' }, { id: 't23', empId: '2023', name: '橋本 徹', role: '副店長', isOJT: true } ] }
     ]
   };
 

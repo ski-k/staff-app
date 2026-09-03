@@ -137,6 +137,15 @@
   .staff-card:hover { transform: translateY(-1px); box-shadow: 0 3px 6px rgba(0,0,0,0.12); border-color: #a0aec0; }
   .staff-card:active { cursor: grabbing; transform: translateY(0); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
   
+  /* ★ 業務委託スタッフの視覚的強調（画面上） */
+  .staff-card.is-outsource {
+    background: #f7fafc; 
+    border: 1px dashed #a0aec0;
+  }
+  .staff-card.is-outsource .emp-id-text::after {
+    content: " [委託]"; color: #e53e3e; font-weight: bold; font-size: 0.9em;
+  }
+
   .emp-id-text { font-size: 0.65em; color: #a0aec0; line-height: 1; display: block; font-family: monospace; }
   
   /* ★ 予定フラグ用プルダウンのデザイン */
@@ -248,6 +257,10 @@
     }
     .staff-card.is-kobutsu { border-left: 2.5px solid #805ad5 !important; } 
     .staff-card.is-ojt { border-left: 2.5px solid #48bb78 !important; } 
+
+    /* ★ 業務委託スタッフは印刷時も破線でわかりやすく */
+    .staff-card.is-outsource { border: 1.5px dashed #4a5568 !important; background: #f8f9fa !important; }
+    .staff-card.is-outsource .emp-id-text::after { display: none; }
     
     .staff-card.status-moved { background: #fffff0 !important; border: 1.5px solid #d69e2e !important; }
     .staff-card.status-up { background: #fff5f5 !important; border: 1.5px solid #e53e3e !important; }
@@ -255,9 +268,11 @@
     .staff-card.status-new { background: #e6fffa !important; border: 1.5px solid #38b2ac !important; }
     
     .emp-id-text { font-size: 0.65em; color: #4a5568 !important; display: block; margin-bottom: 0; line-height: 1;}
-    .name-text { font-size: 0.9em; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1a202c !important; font-weight: bold; line-height: 1.1;}
     
-    .staff-card[data-company]:not([data-company=""]) .name-text { display: none !important; }
+    /* 通常時は名前を表示させる */
+    .name-text { font-size: 0.9em; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1a202c !important; font-weight: bold; line-height: 1.1;}
+    .staff-card[data-company]:not([data-company=""]) .name-text { display: block !important; }
+    
     .staff-card[data-company]:not([data-company=""]) .company-text:not(:empty) { 
       display: block !important; font-size: 0.8em !important; font-weight: bold !important;
       color: #1a202c !important; margin-top: 0 !important; white-space: normal !important; 
@@ -265,6 +280,14 @@
     }
     .company-text:empty { display: none !important; }
     
+    /* ★ 【委託名秘匿モード】の時の設定 */
+    body.hide-outsource .staff-card.is-outsource .name-row { display: none !important; }
+    body.hide-outsource .staff-card.is-outsource .company-text { 
+      display: flex !important; align-items: center; justify-content: center; text-align: center;
+      font-size: 1.1em !important; height: 100%; min-height: 20px; white-space: normal !important;
+      margin-top: 2px !important; background: transparent !important; color: #1a202c !important;
+    }
+
     .staff-role { border: none !important; background: transparent !important; -webkit-appearance: none; appearance: none; padding: 0; font-size: 0.75em; font-weight: bold; color: #4a5568 !important; line-height: 1;}
     .staff-actions { gap: 1px; }
     
@@ -319,7 +342,9 @@
 
   <div class="action-group" style="background: #e6fffa; border-color: #b2f5ea;">
     <span class="action-group-title">【出力・共有】</span>
-    <button class="btn btn-print" onclick="window.print()">🖨️ 表示中の配置表(PDF)</button>
+    <!-- ★ ボタンを2つに分けました -->
+    <button class="btn btn-print" onclick="window.print()" title="個人名も表示して印刷します">🖨️ PDF(通常)</button>
+    <button class="btn btn-print" style="background: #2b6cb0;" onclick="printHideOutsource()" title="業務委託の個人名を隠して印刷します">🖨️ PDF(委託名秘匿)</button>
     <button class="btn btn-roumu" onclick="openRoumuModal()">📄 労務用依頼書</button>
     <button class="btn btn-csv" onclick="exportToExcel()">📊 Excel出力</button>
   </div>
@@ -398,7 +423,7 @@
   </div>
 </div>
 
-<!-- ★ 削除（離脱）モーダル -->
+<!-- 削除（離脱）モーダル -->
 <div class="modal-overlay" id="delete-modal">
   <div class="modal-content">
     <h3>🚪 スタッフの離脱（配置から外す）</h3>
@@ -417,7 +442,6 @@
     </div>
     <div class="modal-actions">
       <button class="btn btn-cancel" onclick="closeDeleteModal()">キャンセル</button>
-      <!-- エラー防止のため、クラス名を btn-confirm-delete に変更 -->
       <button class="btn btn-confirm-delete" onclick="executeDelete()">配置から外す</button>
     </div>
   </div>
@@ -429,7 +453,7 @@
     <h3>📄 労務G向け 異動依頼書出力</h3>
     <p style="font-size: 0.85em; color: #718096; margin-top: 0; line-height: 1.4;">
       現在表示中の地域で変更があったスタッフを抽出し、公式フォーマットで出力します。<br>
-      <span style="color: #e53e3e;">※退職・休職・産育休のスタッフは除外されます。</span>
+      <span style="color: #e53e3e;">※退職・休職・産育休・<b>業務委託</b>は除外されます。</span>
     </p>
     <div class="form-group">
       <label>辞令日</label>
@@ -706,6 +730,10 @@
     const originRole = card.dataset.originRole;
     const isNew = card.classList.contains('new-staff');
 
+    // ★ 業務委託クラスの更新（プルダウンで変更された時など）
+    if (currentRole === '業務委託') card.classList.add('is-outsource');
+    else card.classList.remove('is-outsource');
+
     let badgesHTML = '';
     let isMoved = false, isUp = false, isDown = false;
 
@@ -788,11 +816,12 @@
         const newClass = person.isNew ? 'new-staff' : '';
         const ojtClass = person.isOJT ? 'is-ojt' : '';
         const kobutsuClass = person.isKobutsu ? 'is-kobutsu' : '';
+        const outsourceClass = person.role === '業務委託' ? 'is-outsource' : ''; // ★ 業務委託用クラス
         const empIdText = person.empId ? person.empId : '';
         const companyText = person.company ? person.company : ''; 
         
         staffHTML += `
-          <div class="staff-card ${newClass} ${ojtClass} ${kobutsuClass}" draggable="true" 
+          <div class="staff-card ${newClass} ${ojtClass} ${kobutsuClass} ${outsourceClass}" draggable="true" 
                data-id="${person.id}" data-emp-id="${person.empId || ''}" data-company="${companyText}" 
                data-origin="${origin}" data-origin-role="${originRole}" 
                data-origin-ojt="${originOjt}" data-origin-kobutsu="${originKobutsu}" data-origin-plan="${originPlan}">
@@ -925,7 +954,8 @@
       const card = document.createElement('div');
       const ojtClass = isOJT ? 'is-ojt' : '';
       const kobutsuClass = isKobutsu ? 'is-kobutsu' : '';
-      card.className = `staff-card new-staff ${ojtClass} ${kobutsuClass}`; 
+      const outsourceClass = role === '業務委託' ? 'is-outsource' : ''; // ★ 業務委託用クラス
+      card.className = `staff-card new-staff ${ojtClass} ${kobutsuClass} ${outsourceClass}`; 
       card.draggable = true; card.dataset.id = 'staff-' + Date.now();
       card.dataset.empId = empId;
       card.dataset.company = company; 
@@ -967,7 +997,7 @@
     }
   }
 
-  // ★ 削除（離脱）用の変数と関数
+  // 削除（離脱）用の変数と関数
   let cardToDelete = null;
 
   function closeDeleteModal() {
@@ -975,7 +1005,6 @@
     cardToDelete = null;
   }
 
-  // ★ 確実にクラウドへ保存してから画面から消すように安全化しました
   async function executeDelete() {
     if (!cardToDelete) return;
     
@@ -983,7 +1012,7 @@
     const dateStr = document.getElementById('delete-date').value;
     const wrapper = cardToDelete.closest('.staff-wrapper');
     
-    showLoading(); // クラウドへの保存が終わるまで待つ
+    showLoading(); 
     
     if (!cardToDelete.classList.contains('new-staff')) {
       let retired = await getCloudData(getStorageKey('staffApp_retired')) || [];
@@ -1010,7 +1039,6 @@
   }
 
   document.addEventListener('click', (e) => {
-    // ★ 誤爆防止: 確実にカード内の「×」ボタンを押した時だけ反応するように修正
     if (e.target.classList.contains('delete-btn') && e.target.closest('.staff-card')) {
       cardToDelete = e.target.closest('.staff-card');
       const name = cardToDelete.querySelector('.name-text').textContent.trim();
@@ -1047,6 +1075,16 @@
     }
   });
 
+  // ★ PDF印刷（委託名秘匿モード）の処理
+  function printHideOutsource() {
+    document.body.classList.add('hide-outsource');
+    window.print();
+  }
+  // 印刷ダイアログが閉じた後に自動で通常モードに戻す
+  window.onafterprint = function() {
+    document.body.classList.remove('hide-outsource');
+  };
+
   function compareData(oldData, newData) {
     const reportList = [];
     if (!oldData) oldData = [];
@@ -1054,7 +1092,6 @@
     oldData.forEach(pastPerson => {
       const currentPerson = newData.find(c => c.id === pastPerson.id);
       if (!currentPerson) {
-        // ★ 離脱した人の処理（理由と日付を表示）
         const displayName = pastPerson.company ? pastPerson.company : pastPerson.name;
         const leaveReason = pastPerson.leaveReason || '退職';
         const leaveDateText = pastPerson.leaveDate ? ` (${formatDateString(pastPerson.leaveDate)})` : '';
@@ -1077,7 +1114,6 @@
         if (!pastPerson.isKobutsu && currentPerson.isKobutsu) { typeArr.push('<span style="color:#805ad5; font-weight:bold;">古物設定</span>'); detailArr.push('古物商に設定'); } 
         else if (pastPerson.isKobutsu && !currentPerson.isKobutsu) { typeArr.push('<span style="color:#a0aec0; font-weight:bold;">古物解除</span>'); detailArr.push('古物商を解除'); }
 
-        // ★ 予定フラグの変更検知
         if (pastPerson.plan !== currentPerson.plan) {
           if (currentPerson.plan) {
             typeArr.push('<span style="color:#e53e3e; font-weight:bold;">予定設定</span>');
@@ -1299,10 +1335,11 @@
       const card = document.createElement('div');
       const ojtClass = person.isOJT ? 'is-ojt' : '';
       const kobutsuClass = person.isKobutsu ? 'is-kobutsu' : '';
+      const outsourceClass = person.role === '業務委託' ? 'is-outsource' : ''; // ★ 業務委託用クラス
       const empIdText = person.empId || '';
       const companyText = person.company || ''; 
       
-      card.className = `staff-card ${newClass} ${ojtClass} ${kobutsuClass}`; 
+      card.className = `staff-card ${newClass} ${ojtClass} ${kobutsuClass} ${outsourceClass}`; 
       card.draggable = true;
       card.dataset.id = person.id; card.dataset.empId = person.empId || '';
       card.dataset.company = companyText; 
@@ -1496,14 +1533,13 @@
         });
       });
 
-      // ★ 削除（離脱）されたスタッフのExcel出力
       const retired = await getCloudData(getStorageKey('staffApp_retired')) || [];
       retired.forEach(person => {
         const displayNameExcel = person.company ? person.company : person.name;
         const leaveReason = person.leaveReason || '退職';
         const leaveDate = person.leaveDate ? formatDateString(person.leaveDate) : '';
         
-        let badgeClass = 'b-leave'; // デフォルト色
+        let badgeClass = 'b-leave'; 
         if (leaveReason === '休職') badgeClass = 'b-up'; 
         if (leaveReason === '産育休') badgeClass = 'b-move'; 
 
@@ -1572,7 +1608,13 @@
     const targetStaff = [];
     
     currentData.forEach(currentPerson => {
+      // ★ 業務委託は労務用依頼書から完全に除外
+      if (currentPerson.role === '業務委託') return;
+      
       const pastPerson = lastData.find(p => p.id === currentPerson.id);
+      // 過去データが業務委託だった場合もスキップ（今回正社員になったなどのレアケースは手動対応を想定）
+      if (pastPerson && pastPerson.role === '業務委託') return;
+
       if (!pastPerson) {
         const displayNameRoumu = currentPerson.company ? currentPerson.company : currentPerson.name;
         targetStaff.push({
@@ -1594,12 +1636,9 @@
       }
     });
     
-    // ★ ここから「退職者」を労務用依頼書に追加する処理を完全に削除しました。
-    // （※退職・休職・産育休は労務用依頼書のPDFには出力されません）
-    
     if (targetStaff.length === 0) {
       hideLoading();
-      alert(`【${currentRegion}】の変更対象となるスタッフがいません。\n（異動、役職変更、新規追加のいずれかの操作を行ってから出力してください）`);
+      alert(`【${currentRegion}】の変更対象となるスタッフがいません。\n（※業務委託や退職のスタッフは労務用には出力されません）`);
       return;
     }
     

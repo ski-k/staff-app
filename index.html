@@ -195,6 +195,7 @@
   .badge-up { background: #e53e3e; }
   .badge-down { background: #3182ce; }
   .badge-new { background: #38b2ac; }
+  .badge-type { background: #805ad5; } /* ★ 区分変更用バッジ */
 
   /* ローディング画面 */
   #loading-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index: 999; display: flex; justify-content: center; align-items: center; font-size: 1.5em; font-weight: bold; color: #3182ce; backdrop-filter: blur(2px);}
@@ -303,6 +304,7 @@
     .badge-up { background-color: #e53e3e !important; }
     .badge-down { background-color: #3182ce !important; }
     .badge-new { background-color: #38b2ac !important; }
+    .badge-type { background-color: #805ad5 !important; } /* ★ 区分変更用バッジ */
   }
 </style>
 </head>
@@ -342,7 +344,6 @@
 
   <div class="action-group" style="background: #e6fffa; border-color: #b2f5ea;">
     <span class="action-group-title">【出力・共有】</span>
-    <!-- ★ ボタンを2つに分けました -->
     <button class="btn btn-print" onclick="window.print()" title="個人名も表示して印刷します">🖨️ PDF(通常)</button>
     <button class="btn btn-print" style="background: #2b6cb0;" onclick="printHideOutsource()" title="業務委託の個人名を隠して印刷します">🖨️ PDF(委託名秘匿)</button>
     <button class="btn btn-roumu" onclick="openRoumuModal()">📄 労務用依頼書</button>
@@ -553,6 +554,9 @@
 
   const roleRank = { 'マネージャー': 10, '販売促進G': 9, '店長(S)': 8, '店長(A)': 7, '店長(B)': 6, '店長(C)': 5, '副店長': 4, '一般': 3, '時短': 2, 'パート': 1, '業務委託': 0 };
   const roleList = ['マネージャー', '販売促進G', '店長(S)', '店長(A)', '店長(B)', '店長(C)', '副店長', '一般', '時短', 'パート', '業務委託'];
+  
+  // ★ 管理職ではない役職（この間の移動は降格・昇格にしない）
+  const nonManagerRoles = ['一般', '時短', 'パート', '業務委託'];
 
   function getStorageKey(baseKey) {
     return `${baseKey}_${currentRegion}`;
@@ -561,7 +565,6 @@
   function showLoading() { document.getElementById('loading-overlay').style.display = 'flex'; }
   function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
 
-  // ★ 予定フラグの色を変える処理
   function changePlanColor(select) {
     if (select.value) {
       select.classList.add('has-plan');
@@ -672,7 +675,6 @@
       card.dataset.originRole = card.querySelector('.staff-role').value;
       card.dataset.originOjt = card.classList.contains('is-ojt');
       card.dataset.originKobutsu = card.classList.contains('is-kobutsu');
-      // 予定フラグはクリアせず、originPlanを現在地に合わせる
       card.dataset.originPlan = card.querySelector('.plan-select').value;
       
       card.classList.remove('new-staff', 'status-moved', 'status-up', 'status-down');
@@ -730,7 +732,6 @@
     const originRole = card.dataset.originRole;
     const isNew = card.classList.contains('new-staff');
 
-    // ★ 業務委託クラスの更新（プルダウンで変更された時など）
     if (currentRole === '業務委託') card.classList.add('is-outsource');
     else card.classList.remove('is-outsource');
 
@@ -739,10 +740,20 @@
 
     if (isNew) badgesHTML += `<span class="badge badge-new">新入社員</span>`;
     if (originStore && currentStore !== originStore) { badgesHTML += `<span class="badge badge-move">移動</span>`; isMoved = true; }
+    
     if (originRole && currentRole !== originRole) {
-      const currentRank = roleRank[currentRole]; const originRank = roleRank[originRole];
-      if (currentRank > originRank) { badgesHTML += `<span class="badge badge-up">昇格✨</span>`; isUp = true; } 
-      else if (currentRank < originRank) { badgesHTML += `<span class="badge badge-down">降格</span>`; isDown = true; }
+      const isOriginNonManager = nonManagerRoles.includes(originRole);
+      const isCurrentNonManager = nonManagerRoles.includes(currentRole);
+
+      // ★ 両方とも非・管理職グループなら「降格」「昇格」にはせず「区分変更」にする
+      if (isOriginNonManager && isCurrentNonManager) {
+        badgesHTML += `<span class="badge badge-type">区分変更</span>`;
+        isMoved = true; // 枠線を目立たせるために一時的にmoved扱いにする
+      } else {
+        const currentRank = roleRank[currentRole]; const originRank = roleRank[originRole];
+        if (currentRank > originRank) { badgesHTML += `<span class="badge badge-up">昇格✨</span>`; isUp = true; } 
+        else if (currentRank < originRank) { badgesHTML += `<span class="badge badge-down">降格</span>`; isDown = true; }
+      }
     }
 
     let badgeContainer = card.querySelector('.badge-container');
@@ -816,7 +827,7 @@
         const newClass = person.isNew ? 'new-staff' : '';
         const ojtClass = person.isOJT ? 'is-ojt' : '';
         const kobutsuClass = person.isKobutsu ? 'is-kobutsu' : '';
-        const outsourceClass = person.role === '業務委託' ? 'is-outsource' : ''; // ★ 業務委託用クラス
+        const outsourceClass = person.role === '業務委託' ? 'is-outsource' : ''; 
         const empIdText = person.empId ? person.empId : '';
         const companyText = person.company ? person.company : ''; 
         
@@ -954,7 +965,7 @@
       const card = document.createElement('div');
       const ojtClass = isOJT ? 'is-ojt' : '';
       const kobutsuClass = isKobutsu ? 'is-kobutsu' : '';
-      const outsourceClass = role === '業務委託' ? 'is-outsource' : ''; // ★ 業務委託用クラス
+      const outsourceClass = role === '業務委託' ? 'is-outsource' : ''; 
       card.className = `staff-card new-staff ${ojtClass} ${kobutsuClass} ${outsourceClass}`; 
       card.draggable = true; card.dataset.id = 'staff-' + Date.now();
       card.dataset.empId = empId;
@@ -997,7 +1008,6 @@
     }
   }
 
-  // 削除（離脱）用の変数と関数
   let cardToDelete = null;
 
   function closeDeleteModal() {
@@ -1075,12 +1085,10 @@
     }
   });
 
-  // ★ PDF印刷（委託名秘匿モード）の処理
   function printHideOutsource() {
     document.body.classList.add('hide-outsource');
     window.print();
   }
-  // 印刷ダイアログが閉じた後に自動で通常モードに戻す
   window.onafterprint = function() {
     document.body.classList.remove('hide-outsource');
   };
@@ -1104,11 +1112,21 @@
       } else {
         let typeArr = []; let detailArr = [];
         if (pastPerson.store !== currentPerson.store) { typeArr.push('<span class="tag-move">異動</span>'); detailArr.push(`【店舗】${pastPerson.store} ➔ ${currentPerson.store}`); }
+        
         if (pastPerson.role !== currentPerson.role) {
-          if (roleRank[currentPerson.role] > roleRank[pastPerson.role]) typeArr.push('<span class="tag-up">昇格</span>');
-          else typeArr.push('<span class="tag-down">降格</span>');
+          const isBothNonManager = nonManagerRoles.includes(pastPerson.role) && nonManagerRoles.includes(currentPerson.role);
+          
+          if (isBothNonManager) {
+            // ★ 区分変更として扱う
+            typeArr.push('<span style="color:#805ad5; font-weight:bold;">区分変更</span>');
+          } else {
+            // これまで通り昇格・降格
+            if (roleRank[currentPerson.role] > roleRank[pastPerson.role]) typeArr.push('<span style="color:#e53e3e; font-weight:bold;">昇格</span>');
+            else typeArr.push('<span style="color:#3182ce; font-weight:bold;">降格</span>');
+          }
           detailArr.push(`【役職】${pastPerson.role} ➔ ${currentPerson.role}`);
         }
+
         if (!pastPerson.isOJT && currentPerson.isOJT) { typeArr.push('<span style="color:#48bb78; font-weight:bold;">OJT任命</span>'); detailArr.push('OJT担当に設定'); } 
         else if (pastPerson.isOJT && !currentPerson.isOJT) { typeArr.push('<span style="color:#a0aec0; font-weight:bold;">OJT解除</span>'); detailArr.push('OJT担当を解除'); }
         if (!pastPerson.isKobutsu && currentPerson.isKobutsu) { typeArr.push('<span style="color:#805ad5; font-weight:bold;">古物設定</span>'); detailArr.push('古物商に設定'); } 
@@ -1335,7 +1353,7 @@
       const card = document.createElement('div');
       const ojtClass = person.isOJT ? 'is-ojt' : '';
       const kobutsuClass = person.isKobutsu ? 'is-kobutsu' : '';
-      const outsourceClass = person.role === '業務委託' ? 'is-outsource' : ''; // ★ 業務委託用クラス
+      const outsourceClass = person.role === '業務委託' ? 'is-outsource' : ''; 
       const empIdText = person.empId || '';
       const companyText = person.company || ''; 
       
@@ -1461,6 +1479,7 @@
         .b-up { background-color: #e53e3e; color: #fff; padding: 2px 6px; font-size: 12px; border-radius: 4px; }
         .b-down { background-color: #3182ce; color: #fff; padding: 2px 6px; font-size: 12px; border-radius: 4px; }
         .b-leave { background-color: #718096; color: #fff; padding: 2px 6px; font-size: 12px; border-radius: 4px; }
+        .b-type { background-color: #805ad5; color: #fff; padding: 2px 6px; font-size: 12px; border-radius: 4px; }
         .t-center { text-align: center; }
       </style>
       </head>
@@ -1504,6 +1523,8 @@
           if(card.querySelector('.badge-move')) statusHtml.push('<span class="b-move">移動</span>');
           if(card.querySelector('.badge-up')) statusHtml.push('<span class="b-up">昇格</span>');
           if(card.querySelector('.badge-down')) statusHtml.push('<span class="b-down">降格</span>');
+          // ★ Excel上にも区分変更を反映
+          if(card.innerHTML.includes('区分変更')) statusHtml.push('<span class="b-type">区分変更</span>');
           const statusStr = statusHtml.join(' ');
           
           const originStore = card.dataset.origin || '';
@@ -1608,11 +1629,9 @@
     const targetStaff = [];
     
     currentData.forEach(currentPerson => {
-      // ★ 業務委託は労務用依頼書から完全に除外
       if (currentPerson.role === '業務委託') return;
       
       const pastPerson = lastData.find(p => p.id === currentPerson.id);
-      // 過去データが業務委託だった場合もスキップ（今回正社員になったなどのレアケースは手動対応を想定）
       if (pastPerson && pastPerson.role === '業務委託') return;
 
       if (!pastPerson) {

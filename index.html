@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-     画面用デザイン (視認性ブラッシュアップ版)
+     画面用デザイン
      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
   body { 
     font-family: 'Helvetica Neue', Arial, sans-serif; 
@@ -41,7 +41,6 @@
   .btn-cancel { background: #a0aec0; } .btn-cancel:hover { background: #718096; }
   .btn-print { background: #4299e1; } .btn-print:hover { background: #3182ce; }
   
-  /* ボタンの色設定 */
   .btn-delete { background: #fc8181; } .btn-delete:hover { background: #f56565; }
   .btn-confirm-delete { background: #e53e3e; color: #fff; } .btn-confirm-delete:hover { background: #c53030; }
   
@@ -72,6 +71,18 @@
   .report-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
   .report-table th, .report-table td { border: 1px solid #e2e8f0; padding: 6px; text-align: left; }
   .report-table th { background: #edf2f7; color: #2d3748; }
+
+  /* ★ エリア間・異動待機ボックスのデザイン */
+  #transfer-area {
+    background: #ebf8ff; border: 2px dashed #3182ce; padding: 10px; border-radius: 6px; margin-bottom: 12px;
+    display: flex; flex-direction: column; gap: 6px; box-shadow: 0 2px 4px rgba(49,130,206,0.1);
+  }
+  #transfer-area-title { font-weight: bold; color: #2b6cb0; font-size: 0.9em; margin-bottom: 2px; }
+  #transfer-box {
+    min-height: 55px; background: #fff; border: 1px solid #bee3f8; border-radius: 4px;
+    display: flex; gap: 6px; padding: 6px; flex-wrap: wrap; align-items: flex-start;
+  }
+  #transfer-box.drag-over { border-color: #ed8936; background: #fffaf0; border-width: 2px; }
 
   .board { display: flex; flex-direction: column; gap: 8px; } 
   
@@ -132,30 +143,29 @@
     background: #fff; border: 1px solid #cbd5e0; border-radius: 4px; 
     padding: 5px; cursor: grab; display: flex; flex-direction: column; 
     gap: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); width: 135px; position: relative;
-    transition: transform 0.1s, box-shadow 0.1s; box-sizing: border-box;
+    transition: transform 0.1s, box-shadow 0.1s, border-color 0.2s, background-color 0.2s; box-sizing: border-box;
   }
   .staff-card:hover { transform: translateY(-1px); box-shadow: 0 3px 6px rgba(0,0,0,0.12); border-color: #a0aec0; }
   .staff-card:active { cursor: grabbing; transform: translateY(0); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
   
-  /* ★ 業務委託スタッフの視覚的強調（画面上） */
-  .staff-card.is-outsource {
-    background: #f7fafc; 
-    border: 1px dashed #a0aec0;
+  /* ★ 変更があったスタッフの強烈なハイライト（画面用） */
+  .staff-card.has-changed {
+    border: 2px solid #ed8936 !important;
+    background: #fffaf0 !important;
+    box-shadow: 0 3px 6px rgba(237, 137, 54, 0.2) !important;
   }
-  .staff-card.is-outsource .emp-id-text::after {
-    content: " [委託]"; color: #e53e3e; font-weight: bold; font-size: 0.9em;
-  }
+
+  .staff-card.is-outsource { background: #f7fafc; border: 1px dashed #a0aec0; }
+  .staff-card.is-outsource.has-changed { background: #fffaf0 !important; border: 2px dashed #ed8936 !important; }
+  .staff-card.is-outsource .emp-id-text::after { content: " [委託]"; color: #e53e3e; font-weight: bold; font-size: 0.9em; }
 
   .emp-id-text { font-size: 0.65em; color: #a0aec0; line-height: 1; display: block; font-family: monospace; }
   
-  /* ★ 予定フラグ用プルダウンのデザイン */
   .plan-select { 
     font-size: 0.6em; padding: 0 2px; border: 1px solid #cbd5e0; border-radius: 2px; 
     background: #fff; color: #a0aec0; height: 17px; outline: none; width: 62px;
   }
-  .plan-select.has-plan {
-    color: #e53e3e; border-color: #fc8181; background: #fff5f5; font-weight: bold;
-  }
+  .plan-select.has-plan { color: #e53e3e; border-color: #fc8181; background: #fff5f5; font-weight: bold; }
 
   .staff-name-container { display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; gap: 2px; margin-bottom: 3px;}
   .name-row { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; gap: 2px; }
@@ -195,22 +205,21 @@
   .badge-up { background: #e53e3e; }
   .badge-down { background: #3182ce; }
   .badge-new { background: #38b2ac; }
-  .badge-type { background: #805ad5; } /* ★ 区分変更用バッジ */
+  .badge-type { background: #805ad5; } 
 
   /* ローディング画面 */
   #loading-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index: 999; display: flex; justify-content: center; align-items: center; font-size: 1.5em; font-weight: bold; color: #3182ce; backdrop-filter: blur(2px);}
   
   /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-     ★ 全体配置表 PDF出力（コンパクト収納 10店舗対応版）
+     ★ 全体配置表 PDF出力
      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
   @media print {
     @page { size: A4 landscape; margin: 5mm; }
     
     body { background-color: #fff !important; padding: 0; margin: 0; color: #1a202c !important; font-family: "Yu Gothic", "Meiryo", sans-serif; font-size: 9.5px; }
     
-    .action-bar, .delete-btn, .edit-btn, .modal-overlay, #report-area, .region-tabs, #loading-overlay { display: none !important; }
+    .action-bar, .delete-btn, .edit-btn, .modal-overlay, #report-area, .region-tabs, #loading-overlay, #transfer-area { display: none !important; }
     
-    /* 印刷時は予定フラグのプルダウンを完全に消去 */
     .plan-select { display: none !important; }
 
     h2#page-title { text-align: center; border-bottom: 2px solid #2d3748; padding-bottom: 2px; margin-top: 0; margin-bottom: 4px; font-size: 14px; font-weight: bold; color: #1a202c !important; }
@@ -259,18 +268,18 @@
     .staff-card.is-kobutsu { border-left: 2.5px solid #805ad5 !important; } 
     .staff-card.is-ojt { border-left: 2.5px solid #48bb78 !important; } 
 
-    /* ★ 業務委託スタッフは印刷時も破線でわかりやすく */
     .staff-card.is-outsource { border: 1.5px dashed #4a5568 !important; background: #f8f9fa !important; }
     .staff-card.is-outsource .emp-id-text::after { display: none; }
     
-    .staff-card.status-moved { background: #fffff0 !important; border: 1.5px solid #d69e2e !important; }
-    .staff-card.status-up { background: #fff5f5 !important; border: 1.5px solid #e53e3e !important; }
-    .staff-card.status-down { background: #ebf8ff !important; border: 1.5px solid #3182ce !important; }
-    .staff-card.status-new { background: #e6fffa !important; border: 1.5px solid #38b2ac !important; }
-    
+    /* ★ 変更があったスタッフの強烈なハイライト（印刷用） */
+    .staff-card.has-changed {
+      border: 2px solid #ed8936 !important;
+      background: #fffaf0 !important;
+    }
+    .staff-card.is-outsource.has-changed { border: 2px dashed #ed8936 !important; }
+
     .emp-id-text { font-size: 0.65em; color: #4a5568 !important; display: block; margin-bottom: 0; line-height: 1;}
     
-    /* 通常時は名前を表示させる */
     .name-text { font-size: 0.9em; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1a202c !important; font-weight: bold; line-height: 1.1;}
     .staff-card[data-company]:not([data-company=""]) .name-text { display: block !important; }
     
@@ -281,7 +290,6 @@
     }
     .company-text:empty { display: none !important; }
     
-    /* ★ 【委託名秘匿モード】の時の設定 */
     body.hide-outsource .staff-card.is-outsource .name-row { display: none !important; }
     body.hide-outsource .staff-card.is-outsource .company-text { 
       display: flex !important; align-items: center; justify-content: center; text-align: center;
@@ -304,7 +312,7 @@
     .badge-up { background-color: #e53e3e !important; }
     .badge-down { background-color: #3182ce !important; }
     .badge-new { background-color: #38b2ac !important; }
-    .badge-type { background-color: #805ad5 !important; } /* ★ 区分変更用バッジ */
+    .badge-type { background-color: #805ad5 !important; } 
   }
 </style>
 </head>
@@ -353,6 +361,12 @@
   <div class="action-group" style="background: #edf2f7; border-color: #cbd5e0;">
     <button class="btn btn-cancel" onclick="resetAllData()" title="現在表示している地域のデータをクラウドから消去して初期状態に戻します">⚙️ リセット</button>
   </div>
+</div>
+
+<!-- ★ エリア間・異動待機ボックス -->
+<div id="transfer-area">
+  <div id="transfer-area-title">✈️ エリア間・異動待機ボックス（他エリアへ異動させたいスタッフをここにドロップし、タブを切り替えてください）</div>
+  <div id="transfer-box" class="staff-list drag-area"></div>
 </div>
 
 <div id="report-area">
@@ -435,15 +449,16 @@
         <option value="退職">退職</option>
         <option value="休職">休職</option>
         <option value="産育休">産育休</option>
+        <option value="他エリアへ異動">他エリアへ異動 (待機ボックスへ送る)</option>
       </select>
     </div>
     <div class="form-group">
-      <label>日付 (退職日や開始日)</label>
+      <label>日付 (退職日や異動日)</label>
       <input type="date" id="delete-date" class="input-text">
     </div>
     <div class="modal-actions">
       <button class="btn btn-cancel" onclick="closeDeleteModal()">キャンセル</button>
-      <button class="btn btn-confirm-delete" onclick="executeDelete()">配置から外す</button>
+      <button class="btn btn-confirm-delete" onclick="executeDelete()">実行する</button>
     </div>
   </div>
 </div>
@@ -555,7 +570,7 @@
   const roleRank = { 'マネージャー': 10, '販売促進G': 9, '店長(S)': 8, '店長(A)': 7, '店長(B)': 6, '店長(C)': 5, '副店長': 4, '一般': 3, '時短': 2, 'パート': 1, '業務委託': 0 };
   const roleList = ['マネージャー', '販売促進G', '店長(S)', '店長(A)', '店長(B)', '店長(C)', '副店長', '一般', '時短', 'パート', '業務委託'];
   
-  // ★ 管理職ではない役職（この間の移動は降格・昇格にしない）
+  // 管理職ではない役職（この間の移動は降格・昇格にしない）
   const nonManagerRoles = ['一般', '時短', 'パート', '業務委託'];
 
   function getStorageKey(baseKey) {
@@ -637,7 +652,8 @@
         data.push({ 
           id: person.id, empId: person.empId || '', name: person.name, company: person.company || '', role: person.role, 
           store: store.name, isOJT: person.isOJT || false, isKobutsu: person.isKobutsu || false,
-          plan: person.plan || '' 
+          plan: person.plan || '', originRegion: person.originRegion || currentRegion,
+          origin: store.name
         });
       });
     });
@@ -670,14 +686,15 @@
     if (!confirm(`【${currentRegion}】の現在画面に表示されている配置を「基準」として設定し、すべての【移動・昇格等のバッジ】を消去しますか？`)) return;
 
     showLoading();
-    document.querySelectorAll('.staff-card').forEach(card => {
+    document.querySelectorAll('.store-row .staff-card').forEach(card => {
       card.dataset.origin = card.closest('.store-row').querySelector('.store-name').textContent.trim();
       card.dataset.originRole = card.querySelector('.staff-role').value;
       card.dataset.originOjt = card.classList.contains('is-ojt');
       card.dataset.originKobutsu = card.classList.contains('is-kobutsu');
       card.dataset.originPlan = card.querySelector('.plan-select').value;
+      card.dataset.originRegion = currentRegion; 
       
-      card.classList.remove('new-staff', 'status-moved', 'status-up', 'status-down');
+      card.classList.remove('new-staff', 'status-moved', 'status-up', 'status-down', 'has-changed');
       updateBadges(card);
     });
     
@@ -726,29 +743,34 @@
   }
 
   function updateBadges(card) {
-    const currentStore = card.closest('.store-row').querySelector('.store-name').textContent.trim();
+    const storeRow = card.closest('.store-row');
+    const currentStore = storeRow ? storeRow.querySelector('.store-name').textContent.trim() : '';
     const currentRole = card.querySelector('.staff-role').value;
     const originStore = card.dataset.origin;
     const originRole = card.dataset.originRole;
+    const originRegion = card.dataset.originRegion || currentRegion; 
     const isNew = card.classList.contains('new-staff');
 
     if (currentRole === '業務委託') card.classList.add('is-outsource');
     else card.classList.remove('is-outsource');
 
     let badgesHTML = '';
-    let isMoved = false, isUp = false, isDown = false;
+    let isMoved = false, isUp = false, isDown = false, isTypeChange = false;
 
     if (isNew) badgesHTML += `<span class="badge badge-new">新入社員</span>`;
-    if (originStore && currentStore !== originStore) { badgesHTML += `<span class="badge badge-move">移動</span>`; isMoved = true; }
+    
+    if (originStore && currentStore && (currentStore !== originStore || originRegion !== currentRegion)) { 
+      badgesHTML += `<span class="badge badge-move">移動</span>`; 
+      isMoved = true; 
+    }
     
     if (originRole && currentRole !== originRole) {
       const isOriginNonManager = nonManagerRoles.includes(originRole);
       const isCurrentNonManager = nonManagerRoles.includes(currentRole);
 
-      // ★ 両方とも非・管理職グループなら「降格」「昇格」にはせず「区分変更」にする
       if (isOriginNonManager && isCurrentNonManager) {
         badgesHTML += `<span class="badge badge-type">区分変更</span>`;
-        isMoved = true; // 枠線を目立たせるために一時的にmoved扱いにする
+        isTypeChange = true;
       } else {
         const currentRank = roleRank[currentRole]; const originRank = roleRank[originRole];
         if (currentRank > originRank) { badgesHTML += `<span class="badge badge-up">昇格✨</span>`; isUp = true; } 
@@ -768,7 +790,11 @@
     if (isNew) card.classList.add('status-new');
     else if (isUp) card.classList.add('status-up');
     else if (isDown) card.classList.add('status-down');
-    else if (isMoved) card.classList.add('status-moved');
+    else if (isMoved || isTypeChange) card.classList.add('status-moved');
+
+    let hasChange = isNew || isMoved || isUp || isDown || isTypeChange;
+    if (hasChange && currentStore) card.classList.add('has-changed');
+    else card.classList.remove('has-changed');
   }
 
   async function saveCurrentMaster() {
@@ -788,17 +814,104 @@
           originRole: card.dataset.originRole,
           originOjt: card.dataset.originOjt,
           originKobutsu: card.dataset.originKobutsu, 
+          originPlan: card.dataset.originPlan || '',
+          originRegion: card.dataset.originRegion || currentRegion, 
           isNew: card.classList.contains('new-staff'),
           isOJT: card.classList.contains('is-ojt'),
           isKobutsu: card.classList.contains('is-kobutsu'),
-          plan: card.querySelector('.plan-select').value,
-          originPlan: card.dataset.originPlan || '' 
+          plan: card.querySelector('.plan-select').value
         });
       });
       master.push({ area: area, name: storeName, staff: staffList });
     });
     await setCloudData(getStorageKey('staffApp_currentMaster'), master);
     updateStaffCounts();
+  }
+
+  async function saveTransferBox() {
+    const transferList = [];
+    document.querySelectorAll('#transfer-box .staff-card').forEach(card => {
+      transferList.push({
+        id: card.dataset.id,
+        empId: card.dataset.empId || '',
+        name: card.querySelector('.name-text').textContent.trim(),
+        company: card.dataset.company || '',
+        role: card.querySelector('.staff-role').value,
+        origin: card.dataset.origin,
+        originRole: card.dataset.originRole,
+        originOjt: card.dataset.originOjt,
+        originKobutsu: card.dataset.originKobutsu,
+        originPlan: card.dataset.originPlan || '',
+        originRegion: card.dataset.originRegion || currentRegion,
+        isNew: card.classList.contains('new-staff'),
+        isOJT: card.classList.contains('is-ojt'),
+        isKobutsu: card.classList.contains('is-kobutsu'),
+        plan: card.querySelector('.plan-select').value
+      });
+    });
+    await setCloudData('staffApp_transferBox_global', transferList);
+  }
+
+  async function loadTransferBox() {
+    const transferData = await getCloudData('staffApp_transferBox_global') || [];
+    const box = document.getElementById('transfer-box');
+    box.innerHTML = '';
+    
+    transferData.forEach(person => {
+      const originRegion = person.originRegion || currentRegion;
+      const origin = person.origin || '';
+      const originRole = person.originRole || person.role;
+      const originOjt = person.originOjt !== undefined ? person.originOjt : person.isOJT;
+      const originKobutsu = person.originKobutsu !== undefined ? person.originKobutsu : person.isKobutsu;
+      const originPlan = person.originPlan || person.plan || '';
+      const currentPlan = person.plan || '';
+      
+      const newClass = person.isNew ? 'new-staff' : '';
+      const ojtClass = person.isOJT ? 'is-ojt' : '';
+      const kobutsuClass = person.isKobutsu ? 'is-kobutsu' : '';
+      const outsourceClass = person.role === '業務委託' ? 'is-outsource' : ''; 
+      const empIdText = person.empId || '';
+      const companyText = person.company || ''; 
+      
+      const card = document.createElement('div');
+      card.className = `staff-card ${newClass} ${ojtClass} ${kobutsuClass} ${outsourceClass}`; 
+      card.draggable = true;
+      card.dataset.id = person.id; 
+      card.dataset.empId = empIdText;
+      card.dataset.company = companyText; 
+      card.dataset.origin = origin; 
+      card.dataset.originRole = originRole; 
+      card.dataset.originOjt = originOjt; 
+      card.dataset.originKobutsu = originKobutsu;
+      card.dataset.originPlan = originPlan; 
+      card.dataset.originRegion = originRegion; 
+      
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+          <span class="emp-id-text">${empIdText}</span>
+          <select class="plan-select ${currentPlan ? 'has-plan' : ''}" onchange="changePlanColor(this)" title="予定フラグ（印刷には出ません）">
+            <option value="">予定なし</option>
+            <option value="退職予定" ${currentPlan === '退職予定' ? 'selected' : ''}>退職予定</option>
+            <option value="休職予定" ${currentPlan === '休職予定' ? 'selected' : ''}>休職予定</option>
+            <option value="産育休予定" ${currentPlan === '産育休予定' ? 'selected' : ''}>産育休予定</option>
+          </select>
+        </div>
+        <div class="staff-name-container">
+          <div class="name-row">
+            <span class="name-text">${person.name}</span>
+            <div class="staff-actions">
+              <button class="kobutsu-btn" title="古物商の切り替え">古</button>
+              <button class="ojt-btn" title="OJT担当の切り替え">OJT</button>
+              <button class="delete-btn" title="配置から外す">×</button>
+            </div>
+          </div>
+          <span class="company-text">${companyText}</span>
+        </div>
+        ${createRoleSelect(person.role)}
+      `;
+      box.appendChild(card);
+      updateBadges(card);
+    });
   }
 
   async function initApp() {
@@ -817,6 +930,7 @@
       let staffHTML = '';
       
       store.staff.forEach(person => {
+        const originRegion = person.originRegion || currentRegion;
         const origin = person.origin || store.name;
         const originRole = person.originRole || person.role;
         const originOjt = person.originOjt !== undefined ? person.originOjt : person.isOJT;
@@ -835,7 +949,8 @@
           <div class="staff-card ${newClass} ${ojtClass} ${kobutsuClass} ${outsourceClass}" draggable="true" 
                data-id="${person.id}" data-emp-id="${person.empId || ''}" data-company="${companyText}" 
                data-origin="${origin}" data-origin-role="${originRole}" 
-               data-origin-ojt="${originOjt}" data-origin-kobutsu="${originKobutsu}" data-origin-plan="${originPlan}">
+               data-origin-ojt="${originOjt}" data-origin-kobutsu="${originKobutsu}" 
+               data-origin-plan="${originPlan}" data-origin-region="${originRegion}">
             
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
               <span class="emp-id-text">${empIdText}</span>
@@ -905,6 +1020,8 @@
     document.querySelectorAll('.staff-card').forEach(card => updateBadges(card));
     updateStaffCounts();
 
+    await loadTransferBox();
+
     if (!savedMaster) await saveCurrentMaster();
     hideLoading();
   }
@@ -973,6 +1090,7 @@
       card.dataset.origin = storeName; card.dataset.originRole = role; 
       card.dataset.originOjt = isOJT; card.dataset.originKobutsu = isKobutsu;
       card.dataset.originPlan = ''; 
+      card.dataset.originRegion = currentRegion; 
       
       card.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
@@ -1041,9 +1159,17 @@
       await setCloudData(getStorageKey('staffApp_retired'), retired);
     }
     
-    cardToDelete.remove(); 
-    sortStaff(wrapper); 
+    if (reason === '他エリアへ異動') {
+      document.getElementById('transfer-box').appendChild(cardToDelete);
+      cardToDelete.dataset.originRegion = currentRegion; 
+      updateBadges(cardToDelete);
+    } else {
+      cardToDelete.remove(); 
+    }
+
+    if (wrapper) sortStaff(wrapper); 
     await saveCurrentMaster(); 
+    await saveTransferBox(); 
     closeDeleteModal();
     hideLoading();
   }
@@ -1076,12 +1202,17 @@
     if (e.target.classList.contains('staff-role')) {
       const card = e.target.closest('.staff-card');
       updateBadges(card); 
-      sortStaff(card.closest('.staff-wrapper')); 
+      
+      const wrapper = card.closest('.staff-wrapper');
+      if (wrapper) sortStaff(wrapper); 
+      
       saveCurrentMaster(); 
+      if (card.closest('#transfer-box')) saveTransferBox(); 
     }
     if (e.target.classList.contains('plan-select')) {
       changePlanColor(e.target);
       saveCurrentMaster();
+      if (e.target.closest('#transfer-box')) saveTransferBox();
     }
   });
 
@@ -1107,6 +1238,7 @@
         let typeBadge = `<span style="color:#718096; font-weight:bold;">${leaveReason}</span>`;
         if(leaveReason === '休職') typeBadge = `<span style="color:#e53e3e; font-weight:bold;">${leaveReason}</span>`;
         if(leaveReason === '産育休') typeBadge = `<span style="color:#d69e2e; font-weight:bold;">${leaveReason}</span>`;
+        if(leaveReason === '他エリアへ異動') typeBadge = `<span style="color:#3182ce; font-weight:bold;">他エリアへ異動</span>`;
         
         reportList.push({ name: displayName, type: typeBadge, detail: `${pastPerson.store}（${pastPerson.role}）から ${leaveReason}${leaveDateText}` });
       } else {
@@ -1117,10 +1249,8 @@
           const isBothNonManager = nonManagerRoles.includes(pastPerson.role) && nonManagerRoles.includes(currentPerson.role);
           
           if (isBothNonManager) {
-            // ★ 区分変更として扱う
             typeArr.push('<span style="color:#805ad5; font-weight:bold;">区分変更</span>');
           } else {
-            // これまで通り昇格・降格
             if (roleRank[currentPerson.role] > roleRank[pastPerson.role]) typeArr.push('<span style="color:#e53e3e; font-weight:bold;">昇格</span>');
             else typeArr.push('<span style="color:#3182ce; font-weight:bold;">降格</span>');
           }
@@ -1151,12 +1281,20 @@
 
     newData.forEach(currentPerson => {
       if (!oldData.find(p => p.id === currentPerson.id)) {
-        let text = `${currentPerson.store}（${currentPerson.role}）に配属`;
-        if (currentPerson.isOJT) text += ' ※OJT';
-        if (currentPerson.isKobutsu) text += ' ※古物商';
-        if (currentPerson.plan) text += ` ※${currentPerson.plan}`;
         const displayName = currentPerson.company ? currentPerson.company : currentPerson.name;
-        reportList.push({ name: displayName, type: '<span class="tag-new">新規追加</span>', detail: text });
+        
+        if (currentPerson.originRegion && currentPerson.originRegion !== currentRegion) {
+           let text = `【他エリアからの異動】${currentPerson.originRegion}の ${currentPerson.origin} ➔ ${currentPerson.store}（${currentPerson.role}）に配属`;
+           if (currentPerson.isOJT) text += ' ※OJT';
+           if (currentPerson.isKobutsu) text += ' ※古物商';
+           reportList.push({ name: displayName, type: '<span style="color:#d69e2e; font-weight:bold;">エリア異動</span>', detail: text });
+        } else {
+           let text = `${currentPerson.store}（${currentPerson.role}）に配属`;
+           if (currentPerson.isOJT) text += ' ※OJT';
+           if (currentPerson.isKobutsu) text += ' ※古物商';
+           if (currentPerson.plan) text += ` ※${currentPerson.plan}`;
+           reportList.push({ name: displayName, type: '<span class="tag-new">新規追加</span>', detail: text });
+        }
       }
     });
     return reportList;
@@ -1177,9 +1315,10 @@
 
   function closeReport() { document.getElementById('report-area').style.display = 'none'; }
 
+  // ★ 修正：現在のデータからoriginRoleもしっかり取得
   function getCurrentFlatData() {
     const data = [];
-    document.querySelectorAll('.staff-card').forEach(card => {
+    document.querySelectorAll('.store-row .staff-card').forEach(card => {
       data.push({
         id: card.dataset.id, 
         empId: card.dataset.empId || '',
@@ -1189,7 +1328,10 @@
         store: card.closest('.store-row').querySelector('.store-name').textContent.trim(),
         isOJT: card.classList.contains('is-ojt'),
         isKobutsu: card.classList.contains('is-kobutsu'),
-        plan: card.querySelector('.plan-select').value
+        plan: card.querySelector('.plan-select').value,
+        originRegion: card.dataset.originRegion || currentRegion,
+        origin: card.dataset.origin || '',
+        originRole: card.dataset.originRole || '' // ★ここを追加！
       });
     });
     return data;
@@ -1197,8 +1339,8 @@
 
   async function getBaselineForCurrentMonth() {
     const data = [];
-    document.querySelectorAll('.staff-card').forEach(card => {
-      if (!card.classList.contains('new-staff')) {
+    document.querySelectorAll('.store-row .staff-card').forEach(card => {
+      if (!card.classList.contains('new-staff') && card.dataset.originRegion === currentRegion) {
         data.push({
           id: card.dataset.id, 
           empId: card.dataset.empId || '',
@@ -1208,7 +1350,8 @@
           store: card.dataset.origin,
           isOJT: card.dataset.originOjt === 'true',
           isKobutsu: card.dataset.originKobutsu === 'true',
-          plan: card.dataset.originPlan || ''
+          plan: card.dataset.originPlan || '',
+          originRegion: card.dataset.originRegion
         });
       }
     });
@@ -1233,12 +1376,13 @@
     await setCloudData(getStorageKey('staffApp_history'), history);
     
     if (!isOverwrite) {
-      document.querySelectorAll('.staff-card').forEach(card => {
+      document.querySelectorAll('.store-row .staff-card').forEach(card => {
         card.dataset.origin = card.closest('.store-row').querySelector('.store-name').textContent.trim();
         card.dataset.originRole = card.querySelector('.staff-role').value;
         card.dataset.originOjt = card.classList.contains('is-ojt'); 
         card.dataset.originKobutsu = card.classList.contains('is-kobutsu'); 
         card.dataset.originPlan = card.querySelector('.plan-select').value;
+        card.dataset.originRegion = currentRegion; 
         card.classList.remove('new-staff'); 
         updateBadges(card); 
       });
@@ -1330,7 +1474,7 @@
     else { prevData = getInitialFlatData(); }
 
     const pastData = pastDataWrapper.data || pastDataWrapper; 
-    document.querySelectorAll('.staff-card').forEach(c => c.remove());
+    document.querySelectorAll('.store-row .staff-card').forEach(c => c.remove());
     
     pastData.forEach(person => {
       let targetWrapper = null;
@@ -1349,6 +1493,7 @@
 
       const plan = person.plan || '';
       const originPlan = prevPerson ? (prevPerson.plan || '') : '';
+      const originRegion = person.originRegion || currentRegion;
 
       const card = document.createElement('div');
       const ojtClass = person.isOJT ? 'is-ojt' : '';
@@ -1364,6 +1509,7 @@
       card.dataset.origin = originStore; card.dataset.originRole = originRole; 
       card.dataset.originOjt = originOjt; card.dataset.originKobutsu = originKobutsu;
       card.dataset.originPlan = originPlan; 
+      card.dataset.originRegion = originRegion; 
       
       card.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
@@ -1438,13 +1584,19 @@
     const list = e.target.closest('.drag-area');
     if (list) list.classList.remove('drag-over');
   });
-  document.addEventListener('drop', (e) => {
+  
+  document.addEventListener('drop', async (e) => {
     e.preventDefault(); const list = e.target.closest('.drag-area');
     if (list) list.classList.remove('drag-over');
     if (list && draggedCard) {
       const wrapper = list.closest('.staff-wrapper');
-      list.appendChild(draggedCard); updateBadges(draggedCard); 
-      sortStaff(wrapper); saveCurrentMaster(); draggedCard = null;
+      list.appendChild(draggedCard); 
+      updateBadges(draggedCard); 
+      if (wrapper) sortStaff(wrapper); 
+      
+      await saveCurrentMaster(); 
+      await saveTransferBox(); 
+      draggedCard = null;
     }
   });
 
@@ -1523,8 +1675,7 @@
           if(card.querySelector('.badge-move')) statusHtml.push('<span class="b-move">移動</span>');
           if(card.querySelector('.badge-up')) statusHtml.push('<span class="b-up">昇格</span>');
           if(card.querySelector('.badge-down')) statusHtml.push('<span class="b-down">降格</span>');
-          // ★ Excel上にも区分変更を反映
-          if(card.innerHTML.includes('区分変更')) statusHtml.push('<span class="b-type">区分変更</span>');
+          if(card.querySelector('.badge-type')) statusHtml.push('<span class="b-type">区分変更</span>');
           const statusStr = statusHtml.join(' ');
           
           const originStore = card.dataset.origin || '';
@@ -1562,7 +1713,8 @@
         
         let badgeClass = 'b-leave'; 
         if (leaveReason === '休職') badgeClass = 'b-up'; 
-        if (leaveReason === '産育休') badgeClass = 'b-move'; 
+        if (leaveReason === '産育休') badgeClass = 'b-type'; 
+        if (leaveReason === '他エリアへ異動') badgeClass = 'b-down'; 
 
         html += `<tr>
             <td style="mso-number-format:'\\@';">${person.empId || ''}</td>
@@ -1636,11 +1788,27 @@
 
       if (!pastPerson) {
         const displayNameRoumu = currentPerson.company ? currentPerson.company : currentPerson.name;
-        targetStaff.push({
-          empId: currentPerson.empId, name: displayNameRoumu,
-          prevRole: '（新規採用）', currentRole: currentPerson.role,
-          prevStore: '（新規採用）', currentStore: currentPerson.store
-        });
+        
+        // ★ 修正：他エリアからの異動時の役職と店舗を正確に取得
+        if (currentPerson.originRegion && currentPerson.originRegion !== currentRegion) {
+          targetStaff.push({
+            empId: currentPerson.empId, 
+            name: displayNameRoumu,
+            prevRole: currentPerson.originRole || '（不明）', 
+            currentRole: currentPerson.role,
+            prevStore: `${currentPerson.originRegion} / ${currentPerson.origin || '不明'}`, 
+            currentStore: currentPerson.store
+          });
+        } else {
+          targetStaff.push({
+            empId: currentPerson.empId, 
+            name: displayNameRoumu,
+            prevRole: '（新規採用）', 
+            currentRole: currentPerson.role,
+            prevStore: '（新規採用）', 
+            currentStore: currentPerson.store
+          });
+        }
       } else {
         const roleChanged = pastPerson.role !== currentPerson.role;
         const storeChanged = pastPerson.store !== currentPerson.store;
